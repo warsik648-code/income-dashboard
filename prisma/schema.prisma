@@ -1,0 +1,233 @@
+// Income Dashboard — Prisma schema
+// Money fields use Decimal(19, 4). Amounts on Transaction are always positive;
+// direction comes from TransactionType. Soft-delete via deletedAt.
+// Do not run migrations until explicitly approved.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  TRUST
+  BINANCE
+  BANK
+  CASH
+  OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  POS
+  CASH
+  BANK_TRANSFER
+  CRYPTO_TRANSFER
+  BINANCE
+  TRUST
+  OTHER
+}
+
+enum DebtDirection {
+  LENT_OUT
+  OWED_BY_ME
+}
+
+enum DebtStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  WRITTEN_OFF
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  SOFT_DELETE
+  RESTORE
+}
+
+enum AttachmentEntityType {
+  TRANSACTION
+  DEBT
+  DEBT_PAYMENT
+}
+
+enum StorageProvider {
+  LOCAL
+  S3
+  R2
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  name              String?
+  preferredCurrency String    @default("USD")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  accounts     FinancialAccount[]
+  categories   Category[]
+  transactions Transaction[]
+  debts        Debt[]
+  attachments  Attachment[]
+  auditLogs    AuditLog[]
+}
+
+model FinancialAccount {
+  id            String      @id @default(cuid())
+  userId        String
+  name          String
+  type          AccountType
+  currency      String
+  cachedBalance Decimal     @default(0) @db.Decimal(19, 4)
+  isArchived    Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+  debts        Debt[]
+
+  @@unique([userId, type, name])
+  @@index([userId, deletedAt])
+}
+
+model Category {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  kind      TransactionType
+  isSystem  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+
+  @@unique([userId, kind, name])
+  @@index([userId, kind, deletedAt])
+}
+
+model Transaction {
+  id              String           @id @default(cuid())
+  userId          String
+  accountId       String
+  categoryId      String?
+  type            TransactionType
+  amount          Decimal          @db.Decimal(19, 4)
+  currency        String
+  transactionDate DateTime
+  description     String
+  counterparty    String?
+  paymentMethod   PaymentMethod?
+  notes           String?
+  debtId          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  user     User             @relation(fields: [userId], references: [id])
+  account  FinancialAccount @relation(fields: [accountId], references: [id])
+  category Category?        @relation(fields: [categoryId], references: [id])
+  debt     Debt?            @relation(fields: [debtId], references: [id])
+
+  @@index([userId, type, transactionDate])
+  @@index([userId, accountId, deletedAt])
+  @@index([userId, currency, deletedAt])
+  @@index([debtId])
+}
+
+model Debt {
+  id              String         @id @default(cuid())
+  userId          String
+  accountId       String?
+  personName      String
+  direction       DebtDirection
+  originalAmount  Decimal        @db.Decimal(19, 4)
+  remainingAmount Decimal        @db.Decimal(19, 4)
+  currency        String
+  dueDate         DateTime?
+  status          DebtStatus     @default(OPEN)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  user         User              @relation(fields: [userId], references: [id])
+  account      FinancialAccount? @relation(fields: [accountId], references: [id])
+  payments     DebtPayment[]
+  transactions Transaction[]
+
+  @@index([userId, status, deletedAt])
+  @@index([userId, direction, deletedAt])
+}
+
+model DebtPayment {
+  id            String    @id @default(cuid())
+  debtId        String
+  amount        Decimal   @db.Decimal(19, 4)
+  currency      String
+  paymentDate   DateTime
+  notes         String?
+  transactionId String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  debt Debt @relation(fields: [debtId], references: [id])
+
+  @@index([debtId, deletedAt])
+}
+
+model Attachment {
+  id             String               @id @default(cuid())
+  userId         String
+  entityType     AttachmentEntityType
+  entityId       String
+  provider       StorageProvider      @default(LOCAL)
+  storageKey     String
+  fileName       String
+  mimeType       String
+  sizeBytes      Int
+  checksumSha256 String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, storageKey])
+  @@index([userId, entityType, entityId, deletedAt])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  action     AuditAction
+  beforeJson Json?
+  afterJson  Json?
+  reason     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+}
