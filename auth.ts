@@ -62,10 +62,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         clearLoginRateLimit(rateKey)
 
+        // Stamp last login after successful credential check.
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        })
+
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
+          passwordChangedAt: user.passwordChangedAt?.getTime() ?? 0,
         }
       },
     }),
@@ -76,11 +83,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.sub = user.id
         token.email = user.email
+        token.pwdAt =
+          typeof user.passwordChangedAt === "number"
+            ? user.passwordChangedAt
+            : 0
+        return token
       }
+
+      if (!token.sub) return token
+
+      const dbUser = await prisma.user.findFirst({
+        where: { id: token.sub, deletedAt: null },
+        select: { passwordChangedAt: true, email: true },
+      })
+
+      if (!dbUser) {
+        return {
+          ...token,
+          sub: undefined,
+          email: undefined,
+          pwdAt: undefined,
+        }
+      }
+
+      const currentPwdAt = dbUser.passwordChangedAt?.getTime() ?? 0
+      if ((token.pwdAt as number | undefined) !== currentPwdAt) {
+        // Password changed elsewhere — reject this JWT.
+        return {
+          ...token,
+          sub: undefined,
+          email: undefined,
+          pwdAt: undefined,
+        }
+      }
+
+      token.email = dbUser.email
       return token
     },
     async session({ session, token }) {
-      if (session.user && token.sub) {
+      if (!token.sub) {
+        return {
+          ...session,
+          user: {
+            ...session.user,
+            id: "",
+            email: "",
+            name: null,
+          },
+        }
+      }
+      if (session.user) {
         session.user.id = token.sub
         if (typeof token.email === "string") {
           session.user.email = token.email

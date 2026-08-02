@@ -99,22 +99,34 @@ enum AssetClass {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String
-  name              String?
-  preferredCurrency String    @default("USD")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  passwordHash             String
+  name                     String?
+  preferredCurrency        String    @default("USD")
+  timezone                 String    @default("UTC")
+  dateFormat               String    @default("YYYY-MM-DD")
+  numberFormat             String    @default("en-US")
+  defaultIncomeAccountId   String?
+  defaultExpenseAccountId  String?
+  lastLoginAt              DateTime?
+  passwordChangedAt        DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  deletedAt                DateTime?
 
-  accounts      FinancialAccount[]
-  categories    Category[]
-  transactions  Transaction[]
-  debts         Debt[]
-  subscriptions Subscription[]
-  attachments   Attachment[]
-  auditLogs     AuditLog[]
+  defaultIncomeAccount  FinancialAccount?  @relation("DefaultIncomeAccount", fields: [defaultIncomeAccountId], references: [id], onDelete: SetNull)
+  defaultExpenseAccount FinancialAccount?  @relation("DefaultExpenseAccount", fields: [defaultExpenseAccountId], references: [id], onDelete: SetNull)
+  accounts              FinancialAccount[] @relation("UserAccounts")
+  categories            Category[]
+  transactions          Transaction[]
+  debts                 Debt[]
+  subscriptions         Subscription[]
+  attachments           Attachment[]
+  auditLogs             AuditLog[]
+
+  @@index([defaultIncomeAccountId])
+  @@index([defaultExpenseAccountId])
 }
 
 model FinancialAccount {
@@ -133,10 +145,12 @@ model FinancialAccount {
   updatedAt     DateTime    @updatedAt
   deletedAt     DateTime?
 
-  user          User           @relation(fields: [userId], references: [id])
-  transactions  Transaction[]
-  debts         Debt[]
-  subscriptions Subscription[]
+  user                   User           @relation("UserAccounts", fields: [userId], references: [id])
+  defaultIncomeForUsers  User[]         @relation("DefaultIncomeAccount")
+  defaultExpenseForUsers User[]         @relation("DefaultExpenseAccount")
+  transactions           Transaction[]
+  debts                  Debt[]
+  subscriptions          Subscription[]
 
   @@unique([userId, type, name])
   @@index([userId, deletedAt])

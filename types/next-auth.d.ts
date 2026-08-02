@@ -6,4 +6,14 @@ declare module "next-auth" {
       id: string
     } & DefaultSession["user"]
   }
+
+  interface User {
+    passwordChangedAt?: number
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    pwdAt?: number
+  }
 }

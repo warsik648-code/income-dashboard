@@ -89,3 +89,19 @@ export {
   uploadAttachment,
   type AttachmentListItem,
 } from "./attachments"
+
+export {
+  SettingsServiceError,
+  archiveCategory,
+  changePassword,
+  createCategory,
+  exportTransactionsCsv,
+  getAttachmentUsageSummary,
+  getSettingsProfile,
+  listManagedCategories,
+  restoreCategory,
+  updateCategory,
+  updatePreferences,
+  type CategoryManageItem,
+  type SettingsProfile,
+} from "./settings"
