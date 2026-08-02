@@ -50,7 +50,12 @@ export function AttachmentsPanel({
   entityId,
   title = "Attachments",
 }: {
-  entityType: "TRANSACTION" | "DEBT" | "DEBT_PAYMENT" | "SUBSCRIPTION"
+  entityType:
+    | "TRANSACTION"
+    | "DEBT"
+    | "DEBT_PAYMENT"
+    | "SUBSCRIPTION"
+    | "TRANSFER"
   entityId: string
   title?: string
 }) {

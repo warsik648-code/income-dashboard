@@ -15,6 +15,7 @@ export const EXPENSE_CATEGORY_NAMES = [
   "Business expense",
   "Debt repayment",
   "Subscription",
+  "Transfer Fees",
   "Other",
 ] as const
 

@@ -93,6 +93,14 @@ async function assertParentOwned(
       if (!row) throw new AttachmentServiceError("Subscription not found.")
       return
     }
+    case "TRANSFER": {
+      const row = await prisma.transfer.findFirst({
+        where: { id: entityId, userId, deletedAt: null },
+        select: { id: true },
+      })
+      if (!row) throw new AttachmentServiceError("Transfer not found.")
+      return
+    }
     default:
       throw new AttachmentServiceError("Unsupported entity type.")
   }

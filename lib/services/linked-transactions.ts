@@ -6,10 +6,12 @@ const SUBSCRIPTION_LINKED_MESSAGE =
 const DEBT_LINKED_MESSAGE =
   "This transaction is linked to a debt payment. Manage it from Debts."
 
+const TRANSFER_LINKED_MESSAGE =
+  "This transaction is linked to a fund transfer. Manage it from Transfers."
+
 /**
  * Block normal edit / soft-delete / restore for transactions owned by
- * subscription renewals or debt payments. Those must go through their
- * owning services so renewal/debt state cannot desync.
+ * subscription renewals, debt payments, or transfers.
  */
 export async function assertStandaloneMutableTransaction(
   tx: Prisma.TransactionClient,
@@ -17,6 +19,7 @@ export async function assertStandaloneMutableTransaction(
     id: string
     subscriptionId: string | null
     debtId: string | null
+    transferId?: string | null
   },
   createError: (message: string) => Error
 ): Promise<void> {
@@ -26,6 +29,10 @@ export async function assertStandaloneMutableTransaction(
 
   if (transaction.debtId) {
     throw createError(DEBT_LINKED_MESSAGE)
+  }
+
+  if (transaction.transferId) {
+    throw createError(TRANSFER_LINKED_MESSAGE)
   }
 
   const debtPayment = await tx.debtPayment.findFirst({

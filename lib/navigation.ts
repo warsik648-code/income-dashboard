@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowLeftRight,
   Repeat,
   Wallet,
   ChartColumn,
@@ -36,6 +37,12 @@ export const mainNavItems: NavItem[] = [
     href: "/dashboard/expenses",
     icon: ArrowUpRight,
     description: "Record spending by category, account, and payment method.",
+  },
+  {
+    title: "Transfers",
+    href: "/dashboard/transfers",
+    icon: ArrowLeftRight,
+    description: "Move funds between your own accounts without counting income.",
   },
   {
     title: "Subscriptions",

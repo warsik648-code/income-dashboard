@@ -26,6 +26,7 @@ const entityType = z.enum([
   "DEBT",
   "DEBT_PAYMENT",
   "SUBSCRIPTION",
+  "TRANSFER",
 ])
 
 export const attachmentParentSchema = z.object({

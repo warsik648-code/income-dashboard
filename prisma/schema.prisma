@@ -62,6 +62,7 @@ enum AttachmentEntityType {
   DEBT
   DEBT_PAYMENT
   SUBSCRIPTION
+  TRANSFER
 }
 
 enum StorageProvider {
@@ -99,6 +100,14 @@ enum AssetClass {
   CRYPTO
 }
 
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REVERSED
+}
+
 model User {
   id                       String    @id @default(cuid())
   email                    String    @unique
@@ -123,6 +132,7 @@ model User {
   transactions          Transaction[]
   debts                 Debt[]
   subscriptions         Subscription[]
+  transfers             Transfer[]
   attachments           Attachment[]
   auditLogs             AuditLog[]
 
@@ -152,6 +162,8 @@ model FinancialAccount {
   transactions           Transaction[]
   debts                  Debt[]
   subscriptions          Subscription[]
+  transfersFrom          Transfer[]     @relation("TransferFromAccount")
+  transfersTo            Transfer[]     @relation("TransferToAccount")
 
   @@unique([userId, type, name])
   @@index([userId, deletedAt])
@@ -200,6 +212,8 @@ model Transaction {
   notes           String?
   debtId          String?
   subscriptionId  String?
+  /// Links a Transfer Fees expense to its parent Transfer (principal is not a Transaction)
+  transferId      String?
   /// UTC YYYY-MM-DD renewal period for subscription payments (DB-enforced unique)
   renewalPeriod   String?
   createdAt       DateTime         @default(now())
@@ -211,6 +225,7 @@ model Transaction {
   category     Category?        @relation(fields: [categoryId], references: [id])
   debt         Debt?            @relation(fields: [debtId], references: [id])
   subscription Subscription?    @relation(fields: [subscriptionId], references: [id])
+  transfer     Transfer?        @relation(fields: [transferId], references: [id])
   debtPayment  DebtPayment?
 
   @@unique([subscriptionId, renewalPeriod])
@@ -219,6 +234,7 @@ model Transaction {
   @@index([userId, currency, deletedAt])
   @@index([debtId])
   @@index([subscriptionId])
+  @@index([transferId])
 }
 
 model Subscription {
@@ -283,6 +299,52 @@ model Debt {
 
   @@index([userId, status, deletedAt])
   @@index([userId, direction, deletedAt])
+}
+
+/// Account-to-account fund movement. Principal is NOT income/expense.
+/// Only COMPLETED transfers affect balances; fee expenses are optional separate Transactions.
+model Transfer {
+  id                         String         @id @default(cuid())
+  userId                     String
+  fromAccountId              String
+  toAccountId                String
+  sourceAmount               Decimal        @db.Decimal(19, 4)
+  sourceCurrency             String
+  destinationAmount          Decimal        @db.Decimal(19, 4)
+  destinationCurrency        String
+  /// Provider-format units of a currency per 1 USD when applicable; 1 for same-currency
+  suggestedExchangeRate      Decimal?       @db.Decimal(24, 12)
+  /// Achieved rate frozen at save (same-currency = 1; USD pairs = non-USD per 1 USD)
+  effectiveExchangeRate      Decimal        @db.Decimal(24, 12)
+  suggestedDestinationAmount Decimal?       @db.Decimal(19, 4)
+  sourceBaseAmountUsd        Decimal        @db.Decimal(19, 4)
+  destinationBaseAmountUsd   Decimal        @db.Decimal(19, 4)
+  feeAmount                  Decimal        @default(0) @db.Decimal(19, 4)
+  feeCurrency                String?
+  feeBaseAmountUsd           Decimal?       @db.Decimal(19, 4)
+  /// When true, fee creates a Transfer Fees EXPENSE on the source account (in addition to sourceAmount)
+  feePaidSeparately          Boolean        @default(false)
+  status                     TransferStatus  @default(PENDING)
+  transferredAt              DateTime
+  reference                  String?
+  notes                      String?
+  idempotencyKey             String?
+  completedAt                DateTime?
+  reversedAt                 DateTime?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+  deletedAt                  DateTime?
+
+  user        User             @relation(fields: [userId], references: [id])
+  fromAccount FinancialAccount @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
+  toAccount   FinancialAccount @relation("TransferToAccount", fields: [toAccountId], references: [id])
+  feeTransactions Transaction[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, deletedAt])
+  @@index([userId, transferredAt, deletedAt])
+  @@index([fromAccountId, status, deletedAt])
+  @@index([toAccountId, status, deletedAt])
 }
 
 model DebtPayment {

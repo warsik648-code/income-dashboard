@@ -25,7 +25,8 @@ export function DashboardActivity({
             Recent activity
           </h2>
           <p className="text-sm text-muted-foreground">
-            Latest income and expenses. Opening balances are excluded.
+            Latest income, expenses, and transfers. Opening balances are
+            excluded.
           </p>
         </div>
         <div className="flex gap-3 text-sm">
@@ -40,6 +41,12 @@ export function DashboardActivity({
             className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Expenses
+          </Link>
+          <Link
+            href="/dashboard/transfers"
+            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Transfers
           </Link>
         </div>
       </div>
@@ -67,10 +74,14 @@ export function DashboardActivity({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge
                       variant={
-                        item.type === "INCOME" ? "secondary" : "outline"
+                        item.type === "INCOME"
+                          ? "secondary"
+                          : item.type === "TRANSFER"
+                            ? "outline"
+                            : "outline"
                       }
                     >
-                      {item.type}
+                      {item.type === "TRANSFER" ? "TRANSFER" : item.type}
                     </Badge>
                     <span className="truncate text-sm font-medium">
                       {item.description}

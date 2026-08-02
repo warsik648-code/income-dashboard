@@ -1,4 +1,5 @@
-import { ArrowUpRight } from "lucide-react"
+import { ArrowLeftRight, ArrowUpRight } from "lucide-react"
+import Link from "next/link"
 
 import { CreateExpenseDialog } from "@/components/expenses/create-expense-dialog"
 import { ExpenseFilters } from "@/components/expenses/expense-filters"
@@ -9,6 +10,7 @@ import type {
 import { ExpenseRow } from "@/components/expenses/expense-row"
 import { EmptyState } from "@/components/layout/empty-state"
 import { PageHeader } from "@/components/layout/page-header"
+import { Button } from "@/components/ui/button"
 import type { ExpenseListItem } from "@/lib/services/expenses"
 
 type ExpensesViewProps = {
@@ -41,7 +43,16 @@ export function ExpensesView({
           title="Expenses"
           description="Track spending by category, merchant, payment method, and account. Balances update with Decimal-safe math."
         />
-        <CreateExpenseDialog accounts={accounts} categories={categories} />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            render={<Link href="/dashboard/transfers" />}
+          >
+            <ArrowLeftRight className="size-4" />
+            Transfer Funds
+          </Button>
+          <CreateExpenseDialog accounts={accounts} categories={categories} />
+        </div>
       </div>
 
       <ExpenseFilters

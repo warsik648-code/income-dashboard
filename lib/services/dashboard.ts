@@ -25,7 +25,7 @@ export type DashboardAccountCard = {
 
 export type DashboardActivityItem = {
   id: string
-  type: "INCOME" | "EXPENSE"
+  type: "INCOME" | "EXPENSE" | "TRANSFER"
   description: string
   amount: string
   currency: string
@@ -124,6 +124,7 @@ export async function getDashboard(userId: string): Promise<DashboardResult> {
     subscriptions,
     debts,
     recent,
+    recentTransfers,
   ] = await Promise.all([
     listAccounts(userId, { includeArchived: false }),
     latestExchangeRatesByCurrency(userId),
@@ -142,6 +143,19 @@ export async function getDashboard(userId: string): Promise<DashboardResult> {
         account: { select: { name: true } },
       },
       orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
+      take: 12,
+    }),
+    prisma.transfer.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        status: { in: ["COMPLETED", "PENDING"] },
+      },
+      include: {
+        fromAccount: { select: { name: true } },
+        toAccount: { select: { name: true } },
+      },
+      orderBy: [{ transferredAt: "desc" }, { createdAt: "desc" }],
       take: 12,
     }),
   ])
@@ -213,17 +227,36 @@ export async function getDashboard(userId: string): Promise<DashboardResult> {
       incomeUsd: row.incomeUsd,
       expensesUsd: row.expensesUsd,
     })),
-    recentActivity: recent.map((txn) => ({
-      id: txn.id,
-      type: txn.type,
-      description: txn.description,
-      amount: txn.amount.toString(),
-      currency: txn.currency,
-      amountUsd: txn.baseAmountUsd.toDecimalPlaces(4).toString(),
-      transactionDate: txn.transactionDate.toISOString(),
-      accountName: txn.account.name,
-      isOpeningBalance: txn.description === OPENING_BALANCE_DESCRIPTION,
-    })),
+    recentActivity: [
+      ...recent.map((txn) => ({
+        id: txn.id,
+        type: txn.type as "INCOME" | "EXPENSE",
+        description: txn.description,
+        amount: txn.amount.toString(),
+        currency: txn.currency,
+        amountUsd: txn.baseAmountUsd.toDecimalPlaces(4).toString(),
+        transactionDate: txn.transactionDate.toISOString(),
+        accountName: txn.account.name,
+        isOpeningBalance: txn.description === OPENING_BALANCE_DESCRIPTION,
+      })),
+      ...recentTransfers.map((transfer) => ({
+        id: transfer.id,
+        type: "TRANSFER" as const,
+        description: `Transfer: ${transfer.fromAccount.name} → ${transfer.toAccount.name}`,
+        amount: transfer.sourceAmount.toString(),
+        currency: transfer.sourceCurrency,
+        amountUsd: transfer.sourceBaseAmountUsd.toDecimalPlaces(4).toString(),
+        transactionDate: transfer.transferredAt.toISOString(),
+        accountName: `${transfer.fromAccount.name} → ${transfer.toAccount.name}`,
+        isOpeningBalance: false,
+      })),
+    ]
+      .sort(
+        (a, b) =>
+          new Date(b.transactionDate).getTime() -
+          new Date(a.transactionDate).getTime()
+      )
+      .slice(0, 12),
     subscriptions: {
       dueCount: subSummary.dueCount,
       due: subSummary.due.slice(0, 5).map((item) => ({
