@@ -645,7 +645,8 @@ export async function softDeleteDebt(userId: string, id: string) {
       action: "SOFT_DELETE",
       before: existing,
       after: deleted,
-      reason: "Debt soft-deleted; payment history preserved",
+      reason:
+        "Debt archived. Linked payment transactions stay in the ledger (cash already moved); they cannot be edited from Income/Expenses.",
     })
 
     return deleted

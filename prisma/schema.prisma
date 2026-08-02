@@ -199,6 +199,8 @@ model Transaction {
   notes           String?
   debtId          String?
   subscriptionId  String?
+  /// UTC YYYY-MM-DD renewal period for subscription payments (DB-enforced unique)
+  renewalPeriod   String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -208,7 +210,9 @@ model Transaction {
   category     Category?        @relation(fields: [categoryId], references: [id])
   debt         Debt?            @relation(fields: [debtId], references: [id])
   subscription Subscription?    @relation(fields: [subscriptionId], references: [id])
+  debtPayment  DebtPayment?
 
+  @@unique([subscriptionId, renewalPeriod])
   @@index([userId, type, transactionDate])
   @@index([userId, accountId, deletedAt])
   @@index([userId, currency, deletedAt])
@@ -296,7 +300,8 @@ model DebtPayment {
   updatedAt          DateTime           @updatedAt
   deletedAt          DateTime?
 
-  debt Debt @relation(fields: [debtId], references: [id])
+  debt        Debt         @relation(fields: [debtId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
 
   @@index([debtId, deletedAt])
 }

@@ -3,7 +3,12 @@ import type { PaymentMethod, Transaction } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
-import { recomputeCachedBalance } from "@/lib/services/balances"
+import {
+  BalanceServiceError,
+  lockAndRefreshAccountBalance,
+  lockAndRefreshAccounts,
+  recomputeCachedBalance,
+} from "@/lib/services/balances"
 import { assertStandaloneMutableTransaction } from "@/lib/services/linked-transactions"
 import type {
   CreateIncomeInput,
@@ -31,26 +36,16 @@ function emptyToNull(value?: string | null) {
   return trimmed ? trimmed : null
 }
 
-function parsePaymentMethod(
-  value?: string | null
-): PaymentMethod | null {
+function parsePaymentMethod(value?: string | null): PaymentMethod | null {
   if (!value) return null
   return value as PaymentMethod
 }
 
-async function getOwnedActiveAccount(userId: string, accountId: string) {
-  const account = await prisma.financialAccount.findFirst({
-    where: {
-      id: accountId,
-      userId,
-      deletedAt: null,
-      isArchived: false,
-    },
-  })
-  if (!account) {
-    throw new IncomeServiceError("Select an active account.")
+function mapBalanceError(error: unknown): never {
+  if (error instanceof BalanceServiceError) {
+    throw new IncomeServiceError(error.message)
   }
-  return account
+  throw error
 }
 
 export async function listIncome(userId: string): Promise<IncomeListItem[]> {
@@ -59,7 +54,6 @@ export async function listIncome(userId: string): Promise<IncomeListItem[]> {
       userId,
       type: "INCOME",
       deletedAt: null,
-      // Keep opening balances out of the Income page list
       NOT: { description: "Opening balance" },
     },
     include: {
@@ -75,16 +69,22 @@ export async function createIncome(
   userId: string,
   input: CreateIncomeInput
 ): Promise<Transaction> {
-  const account = await getOwnedActiveAccount(userId, input.accountId)
   const transactionDate = new Date(input.transactionDate)
 
-  if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
-    throw new IncomeServiceError(
-      "Exchange rate (USD per 1 unit) is required for non-USD accounts."
-    )
-  }
-
   return prisma.$transaction(async (tx) => {
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(tx, userId, input.accountId)
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
+    if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
+      throw new IncomeServiceError(
+        "Exchange rate (USD per 1 unit) is required for non-USD accounts."
+      )
+    }
+
     const fx = buildFxSnapshot({
       amount: input.amount as MoneyDecimalString,
       currency: account.currency,
@@ -174,14 +174,17 @@ export async function updateIncome(
       (message) => new IncomeServiceError(message)
     )
 
-    const account = await tx.financialAccount.findFirst({
-      where: {
-        id: input.accountId,
-        userId,
-        deletedAt: null,
-        isArchived: false,
-      },
-    })
+    let locked
+    try {
+      locked = await lockAndRefreshAccounts(tx, userId, [
+        existing.accountId,
+        input.accountId,
+      ])
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
+    const account = locked.get(input.accountId)
     if (!account) {
       throw new IncomeServiceError("Select an active account.")
     }
@@ -232,11 +235,9 @@ export async function updateIncome(
       reason: "Income entry updated",
     })
 
-    const touchedAccountIds = new Set([existing.accountId, account.id])
-    for (const accountId of touchedAccountIds) {
-      const acct = await tx.financialAccount.findFirstOrThrow({
-        where: { id: accountId },
-      })
+    for (const accountId of new Set([existing.accountId, account.id])) {
+      const acct = locked.get(accountId)
+      if (!acct) continue
       await recomputeCachedBalance(tx, acct.id, acct.currency)
     }
 
@@ -272,6 +273,18 @@ export async function softDeleteIncome(
       (message) => new IncomeServiceError(message)
     )
 
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(
+        tx,
+        userId,
+        existing.accountId,
+        { requireActive: false }
+      )
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
     const deleted = await tx.transaction.update({
       where: { id: existing.id },
       data: { deletedAt: new Date() },
@@ -287,9 +300,6 @@ export async function softDeleteIncome(
       reason: "Income entry soft-deleted",
     })
 
-    const account = await tx.financialAccount.findFirstOrThrow({
-      where: { id: existing.accountId },
-    })
     await recomputeCachedBalance(tx, account.id, account.currency)
 
     return deleted

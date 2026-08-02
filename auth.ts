@@ -63,9 +63,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         clearLoginRateLimit(rateKey)
 
         // Stamp last login after successful credential check.
+        const previousLoginAt = user.lastLoginAt
+        const lastLoginAt = new Date()
         await prisma.user.update({
           where: { id: user.id },
-          data: { lastLoginAt: new Date() },
+          data: { lastLoginAt },
+        })
+        await prisma.auditLog.create({
+          data: {
+            userId: user.id,
+            entityType: "User",
+            entityId: user.id,
+            action: "UPDATE",
+            beforeJson: { lastLoginAt: previousLoginAt?.toISOString() ?? null },
+            afterJson: { lastLoginAt: lastLoginAt.toISOString() },
+            reason: "Successful login",
+            ipAddress: ip === "unknown" ? null : ip.slice(0, 128),
+          },
         })
 
         return {

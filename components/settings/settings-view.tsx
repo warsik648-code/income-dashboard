@@ -385,7 +385,7 @@ export function SettingsView({
           </CardHeader>
           <CardContent>
             <form
-              method="get"
+              method="post"
               action="/dashboard/settings/export"
               className="grid gap-3"
             >

@@ -2,11 +2,22 @@
 
 import { useState } from "react"
 
+const LOGO_HOST_ALLOWLIST = new Set([
+  "cdn.jsdelivr.net",
+  "raw.githubusercontent.com",
+  "images.unsplash.com",
+  "logo.clearbit.com",
+  "www.google.com",
+  "upload.wikimedia.org",
+])
+
 function isSafeHttpsLogoUrl(value: string | null | undefined): value is string {
   if (!value?.trim()) return false
   try {
     const url = new URL(value.trim())
-    return url.protocol === "https:"
+    if (url.protocol !== "https:") return false
+    const host = url.hostname.toLowerCase()
+    return LOGO_HOST_ALLOWLIST.has(host) || host.endsWith(".clearbit.com")
   } catch {
     return false
   }

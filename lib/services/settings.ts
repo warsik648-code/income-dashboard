@@ -417,11 +417,16 @@ export async function getAttachmentUsageSummary(userId: string) {
   }
 }
 
-function csvEscape(value: string) {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`
+/** Neutralize spreadsheet formula injection and quote CSV fields safely. */
+export function csvEscape(value: string) {
+  let safe = value
+  if (/^[=+\-@\t\r]/.test(safe)) {
+    safe = `'${safe}`
   }
-  return value
+  if (/[",\n\r]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`
+  }
+  return safe
 }
 
 export async function exportTransactionsCsv(

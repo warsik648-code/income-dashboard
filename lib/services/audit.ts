@@ -11,6 +11,8 @@ type AuditClient = {
         beforeJson?: Prisma.InputJsonValue
         afterJson?: Prisma.InputJsonValue
         reason?: string
+        ipAddress?: string | null
+        userAgent?: string | null
       }
     }) => Promise<unknown>
   }
@@ -46,6 +48,8 @@ export async function writeAuditLog(
     before?: unknown
     after?: unknown
     reason?: string
+    ipAddress?: string | null
+    userAgent?: string | null
   }
 ) {
   await client.auditLog.create({
@@ -58,6 +62,8 @@ export async function writeAuditLog(
         input.before === undefined ? undefined : toAuditJson(input.before),
       afterJson: input.after === undefined ? undefined : toAuditJson(input.after),
       reason: input.reason,
+      ipAddress: input.ipAddress?.slice(0, 128) || null,
+      userAgent: input.userAgent?.slice(0, 512) || null,
     },
   })
 }

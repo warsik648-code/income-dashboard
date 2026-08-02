@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/ci
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+        env:
+          # Unit tests that need DB skip when unset; session/csv/linked tests run.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Production build
+        run: pnpm build
+        env:
+          AUTH_SECRET: ci-build-placeholder-secret-not-for-production
+          AUTH_URL: http://localhost:3000
+          AUTH_TRUST_HOST: "true"
+          DATABASE_URL: postgresql://user:pass@localhost:5432/ci
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder

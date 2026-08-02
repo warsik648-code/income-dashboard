@@ -1,10 +1,6 @@
 import { z } from "zod"
 
-const positiveDecimal = z
-  .string()
-  .trim()
-  .regex(/^\d+(\.\d+)?$/, "Amount must be a positive decimal")
-  .refine((v) => Number(v) > 0, "Amount must be greater than zero")
+import { positiveDecimalString } from "@/lib/validations/decimal"
 
 const currencyCode = z
   .string()
@@ -21,7 +17,7 @@ const baseDebtSchema = z
   .object({
     personName: z.string().trim().min(1, "Person name is required").max(120),
     direction,
-    originalAmount: positiveDecimal,
+    originalAmount: positiveDecimalString,
     currency: currencyCode,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
     dueDate: z.string().trim().optional().or(z.literal("")),
@@ -87,7 +83,7 @@ export const recordDebtPaymentSchema = z
     }
     if (!data.markFullyPaid) {
       const amount = data.amount?.trim() ?? ""
-      if (!/^\d+(\.\d+)?$/.test(amount) || Number(amount) <= 0) {
+      if (!/^\d+(\.\d+)?$/.test(amount) || /^0+(\.0+)?$/.test(amount)) {
         ctx.addIssue({
           code: "custom",
           path: ["amount"],

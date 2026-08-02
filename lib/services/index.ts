@@ -33,6 +33,7 @@ export {
 } from "./accounts"
 
 export { toAuditJson, writeAuditLog } from "./audit"
+export { listAuditLogs, type AuditLogListItem } from "./audit-query"
 
 export {
   BalanceServiceError,

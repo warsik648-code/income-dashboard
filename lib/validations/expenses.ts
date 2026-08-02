@@ -1,10 +1,6 @@
 import { z } from "zod"
 
-const positiveDecimal = z
-  .string()
-  .trim()
-  .regex(/^\d+(\.\d+)?$/, "Amount must be a positive decimal")
-  .refine((v) => Number(v) > 0, "Amount must be greater than zero")
+import { positiveDecimalString } from "@/lib/validations/decimal"
 
 const paymentMethod = z.enum([
   "POS",
@@ -20,7 +16,7 @@ const baseExpenseSchema = z
   .object({
     accountId: z.string().min(1, "Account is required"),
     categoryId: z.string().min(1, "Category is required"),
-    amount: positiveDecimal,
+    amount: positiveDecimalString,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
     transactionDate: z.string().min(1, "Date and time are required"),
     description: z.string().trim().min(1, "Description is required").max(200),

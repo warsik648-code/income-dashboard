@@ -13,6 +13,16 @@ export const authConfig = {
     maxAge: 60 * 60 * 8, // 8 hours for a finance app
     updateAge: 60 * 30,
   },
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   providers: [],
   callbacks: {
     // Edge-safe: map JWT subject onto session.user.id for middleware checks.

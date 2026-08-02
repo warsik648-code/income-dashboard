@@ -26,7 +26,7 @@ export const createAccountSchema = z
     const balance = data.startingBalance?.trim()
     if (!balance) return
 
-    if (!/^\d+(\.\d+)?$/.test(balance) || Number(balance) <= 0) {
+    if (!/^\d+(\.\d+)?$/.test(balance) || /^0+(\.0+)?$/.test(balance)) {
       ctx.addIssue({
         code: "custom",
         path: ["startingBalance"],
@@ -37,7 +37,7 @@ export const createAccountSchema = z
 
     if (data.currency !== "USD") {
       const rate = data.exchangeRate?.trim()
-      if (!rate || !/^\d+(\.\d+)?$/.test(rate) || Number(rate) <= 0) {
+      if (!rate || !/^\d+(\.\d+)?$/.test(rate) || /^0+(\.0+)?$/.test(rate)) {
         ctx.addIssue({
           code: "custom",
           path: ["exchangeRate"],

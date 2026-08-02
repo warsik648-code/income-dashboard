@@ -316,6 +316,7 @@ export function AttachmentsPanel({
               <iframe
                 title={preview.fileName}
                 src={preview.url}
+                sandbox="allow-same-origin"
                 className="h-[70vh] w-full rounded-md border border-border/60"
               />
             )

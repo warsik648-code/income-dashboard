@@ -76,6 +76,8 @@ export const categoryIdSchema = z.object({
   id: z.string().min(1),
 })
 
+const MAX_EXPORT_RANGE_DAYS = 366
+
 export const exportTransactionsSchema = z
   .object({
     from: z.string().min(1, "Start date is required"),
@@ -108,6 +110,20 @@ export const exportTransactionsSchema = z
         path: ["to"],
         message: "End date must be on or after start date",
       })
+    }
+    if (
+      !Number.isNaN(from.getTime()) &&
+      !Number.isNaN(to.getTime())
+    ) {
+      const days =
+        (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+      if (days > MAX_EXPORT_RANGE_DAYS) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["to"],
+          message: `Export range cannot exceed ${MAX_EXPORT_RANGE_DAYS} days`,
+        })
+      }
     }
   })
 

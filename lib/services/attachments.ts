@@ -14,6 +14,7 @@ import {
   StorageConfigError,
 } from "@/lib/storage/supabase"
 import {
+  assertAttachmentMagicBytes,
   assertSafeAttachmentFile,
   MAX_ATTACHMENTS_PER_ENTITY,
   resolveAttachmentMimeType,
@@ -158,17 +159,11 @@ export async function uploadAttachment(input: {
       sizeBytes: input.bytes.byteLength,
     })
 
-    const activeCount = await prisma.attachment.count({
-      where: {
-        userId: input.userId,
-        entityType: input.entityType,
-        entityId: input.entityId,
-        deletedAt: null,
-      },
-    })
-    if (activeCount >= MAX_ATTACHMENTS_PER_ENTITY) {
+    try {
+      assertAttachmentMagicBytes(input.bytes, safe.mimeType)
+    } catch (error) {
       throw new AttachmentServiceError(
-        `Maximum of ${MAX_ATTACHMENTS_PER_ENTITY} files per record.`
+        error instanceof Error ? error.message : "Invalid file content."
       )
     }
 
@@ -202,6 +197,24 @@ export async function uploadAttachment(input: {
 
     try {
       const created = await prisma.$transaction(async (tx) => {
+        // Serialize per-entity uploads so count cannot race past the max.
+        const lockKey = `${input.userId}:${input.entityType}:${input.entityId}`
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+
+        const activeCount = await tx.attachment.count({
+          where: {
+            userId: input.userId,
+            entityType: input.entityType,
+            entityId: input.entityId,
+            deletedAt: null,
+          },
+        })
+        if (activeCount >= MAX_ATTACHMENTS_PER_ENTITY) {
+          throw new AttachmentServiceError(
+            `Maximum of ${MAX_ATTACHMENTS_PER_ENTITY} files per record.`
+          )
+        }
+
         const row = await tx.attachment.create({
           data: {
             userId: input.userId,

@@ -395,7 +395,8 @@ export async function softDeleteSubscription(userId: string, id: string) {
       action: "SOFT_DELETE",
       before: existing,
       after: deleted,
-      reason: "Subscription soft-deleted",
+      reason:
+        "Subscription archived. Linked renewal expenses stay in the ledger (cash already moved); they cannot be edited from Expenses.",
     })
 
     return deleted
@@ -436,7 +437,16 @@ export async function confirmRenewalPayment(
   const userId = input.userId
   const subscriptionId = input.subscriptionId
 
-  return prisma.$transaction(async (tx) => {
+  // Keep category ensure outside the money transaction (avoids long locks / timeouts).
+  const categories = await ensureExpenseCategories(userId)
+  const subscriptionCategory =
+    categories.find((c) => c.name === "Subscription") ?? categories[0]
+  if (!subscriptionCategory) {
+    throw new SubscriptionServiceError("Expense categories are missing.")
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
     // Lock subscription row first to serialize renewal confirms.
     const lockedSub = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "Subscription"
@@ -482,15 +492,12 @@ export async function confirmRenewalPayment(
     }
 
     const periodKey = renewalPeriodKey(subscription.nextRenewalDate)
-    // Temporary app-level dedupe until DB unique constraint lands (Critical #3).
     const duplicate = await tx.transaction.findFirst({
       where: {
-        userId,
         subscriptionId: subscription.id,
-        type: "EXPENSE",
-        deletedAt: null,
-        notes: { contains: `renewalPeriod:${periodKey}` },
+        renewalPeriod: periodKey,
       },
+      select: { id: true },
     })
     if (duplicate) {
       throw new SubscriptionServiceError(
@@ -522,39 +529,46 @@ export async function confirmRenewalPayment(
       )
     }
 
-    const categories = await ensureExpenseCategories(userId)
-    const subscriptionCategory =
-      categories.find((c) => c.name === "Subscription") ?? categories[0]
-    if (!subscriptionCategory) {
-      throw new SubscriptionServiceError("Expense categories are missing.")
-    }
-
     const paymentDate = input.paymentDate?.trim()
       ? parseDate(input.paymentDate)
       : new Date()
 
-    const expense = await tx.transaction.create({
-      data: {
-        userId,
-        accountId: account.id,
-        categoryId: subscription.categoryId ?? subscriptionCategory.id,
-        subscriptionId: subscription.id,
-        type: "EXPENSE",
-        amount: fx.amount,
-        currency: fx.currency,
-        exchangeRate: fx.exchangeRate,
-        baseAmountUsd: fx.baseAmountUsd,
-        exchangeRateAt: fx.exchangeRateAt,
-        exchangeRateSource: fx.exchangeRateSource,
-        transactionDate: paymentDate,
-        description: `${subscription.name} renewal`,
-        counterparty: subscription.provider,
-        paymentMethod:
-          subscription.paymentMethod ??
-          ("OTHER" as PaymentMethod),
-        notes: `Subscription renewal; renewalPeriod:${periodKey}`,
-      },
-    })
+    let expense
+    try {
+      expense = await tx.transaction.create({
+        data: {
+          userId,
+          accountId: account.id,
+          categoryId: subscription.categoryId ?? subscriptionCategory.id,
+          subscriptionId: subscription.id,
+          renewalPeriod: periodKey,
+          type: "EXPENSE",
+          amount: fx.amount,
+          currency: fx.currency,
+          exchangeRate: fx.exchangeRate,
+          baseAmountUsd: fx.baseAmountUsd,
+          exchangeRateAt: fx.exchangeRateAt,
+          exchangeRateSource: fx.exchangeRateSource,
+          transactionDate: paymentDate,
+          description: `${subscription.name} renewal`,
+          counterparty: subscription.provider,
+          paymentMethod:
+            subscription.paymentMethod ??
+            ("OTHER" as PaymentMethod),
+          notes: `Subscription renewal (${periodKey})`,
+        },
+      })
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new SubscriptionServiceError(
+          `This renewal period (${periodKey}) was already confirmed.`
+        )
+      }
+      throw error
+    }
 
     await writeAuditLog(tx, {
       userId,
@@ -608,7 +622,9 @@ export async function confirmRenewalPayment(
       subscriptionId: subscription.id,
       nextRenewalDate,
     }
-  })
+  },
+    { timeout: 20_000 }
+  )
 }
 
 /** @deprecated use confirmRenewalPayment with ConfirmPaidInput shape */

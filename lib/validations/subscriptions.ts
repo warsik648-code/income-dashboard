@@ -1,10 +1,6 @@
 import { z } from "zod"
 
-const positiveDecimal = z
-  .string()
-  .trim()
-  .regex(/^\d+(\.\d+)?$/, "Price must be a positive decimal")
-  .refine((v) => Number(v) > 0, "Price must be greater than zero")
+import { positiveDecimalString } from "@/lib/validations/decimal"
 
 const billingFrequency = z.enum([
   "WEEKLY",
@@ -47,7 +43,7 @@ const baseSubscriptionSchema = z
     name: z.string().trim().min(1, "Name is required").max(120),
     provider: z.string().trim().min(1, "Provider is required").max(120),
     logoUrl: logoUrlSchema,
-    price: positiveDecimal,
+    price: positiveDecimalString,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
     billingFrequency,
     customIntervalDays: z.string().trim().optional().or(z.literal("")),

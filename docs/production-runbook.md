@@ -1,48 +1,80 @@
-# Production runbook (Stage 1)
+# Production runbook
 
-Do not deploy until Stage 1+ remediations are complete and you explicitly approve a deploy.
+Do not deploy until Critical #3 (renewalPeriod unique) is applied, CI is green, and you explicitly approve a deploy.
+
+## Pre-deploy gates
+
+1. `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` pass (CI on PR).
+2. `prisma migrate deploy` applied on the production database (never `migrate reset`).
+3. Subscription renewals use `Transaction.renewalPeriod` + unique `(subscriptionId, renewalPeriod)` — not notes text.
+4. Supabase `financial-attachments` bucket is **private** (no public policies).
+5. Rotate any secrets that were ever pasted in chat; remove `OWNER_EMAIL` / `OWNER_PASSWORD` from production after seed.
+6. Smoke test: login → dashboard → create income/expense → confirm subscription → export CSV (POST) → sign out.
+
+## Soft-delete / ledger policy
+
+- Soft-deleting a **Subscription** or **Debt** archives the parent record only.
+- Linked payment **transactions stay in the ledger** because cash already moved. Account balances remain correct.
+- Those linked transactions cannot be edited/deleted from Income/Expenses (owning-service rule).
+- Do **not** cascade soft-delete linked expenses on archive — that would incorrectly inflate balances.
 
 ## Supabase Storage — private bucket (required)
 
-The app stores financial attachments (receipts, PDFs, images) in Supabase Storage using the **service role key on the server only**.
-
-Checklist before go-live:
-
 1. Bucket name matches `SUPABASE_ATTACHMENTS_BUCKET` (default: `financial-attachments`).
-2. Bucket is **Private** (not public).
-3. There are **no** public read/write Storage policies on this bucket.
-4. Clients must never receive `SUPABASE_SERVICE_ROLE_KEY`.
-5. Browser access is only via short-lived **signed URLs** created by the server after ownership checks.
-6. Confirm in Supabase Dashboard → Storage → bucket settings: Public = off.
-7. Do not add anonymous/`authenticated` policies that grant `select`/`insert`/`update`/`delete` on this bucket for general users.
-
-If the bucket is ever made public, treat it as a **data exposure incident**: rotate keys, make the bucket private again, and audit object access.
+2. Bucket is **Private**.
+3. No public read/write Storage policies.
+4. Never expose `SUPABASE_SERVICE_ROLE_KEY` via `NEXT_PUBLIC_`.
+5. Browser access only via short-lived signed URLs after ownership checks.
 
 ## Required production environment variables
 
 | Variable | Notes |
 |----------|--------|
-| `DATABASE_URL` | Postgres connection string (server-only) |
-| `AUTH_SECRET` | Strong random secret for Auth.js |
-| `AUTH_URL` | Public HTTPS origin of the app |
+| `DATABASE_URL` | Postgres (server-only) |
+| `AUTH_SECRET` | Strong random secret |
+| `AUTH_URL` | Public HTTPS origin |
 | `AUTH_TRUST_HOST` | `true` behind Vercel / reverse proxies |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (public) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role — **server-only**, never `NEXT_PUBLIC_` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only |
 | `SUPABASE_ATTACHMENTS_BUCKET` | Private bucket name |
 | `SUPABASE_SIGNED_URL_TTL_SECONDS` | Optional; 30–3600, default 120 |
 
-After seeding the owner account, remove `OWNER_EMAIL` / `OWNER_PASSWORD` from production env.
+## Hosting (recommended)
 
-## Database migrations
+- **App:** Vercel (Next.js)
+- **DB:** Supabase Postgres (or Neon)
+- **Files:** Supabase Storage private bucket
 
-```bash
-pnpm exec prisma migrate deploy
-```
+### Deploy steps
 
-Never run `prisma migrate reset` against production.
+1. Set production env vars in the host.
+2. Run `pnpm exec prisma migrate deploy` against production `DATABASE_URL`.
+3. Deploy the Next.js app.
+4. Seed owner once if needed (`pnpm db:seed-owner`), then remove owner seed env vars.
+5. Run the smoke checklist above.
+
+### Rollback
+
+1. Revert the app deployment to the previous release.
+2. Do **not** automatically roll back migrations unless you have a tested down migration; prefer forward-fix.
+3. If Storage was misconfigured as public: make private immediately, rotate service role key, audit access.
+
+## Login rate limiting
+
+In-memory rate limit is fine for a single Node instance. For multiple instances, add Redis/Upstash before scaling out. Prefer the edge/proxy client IP (`x-forwarded-for` first hop from a trusted proxy only).
+
+## Dependency CVEs
+
+`pnpm audit` may still report transitive `sharp` / `postcss` issues bundled by Next.js. Track Next.js patch releases; avoid unrelated major upgrades. Re-run `pnpm audit` after each Next bump.
 
 ## Backups
 
-- Enable Supabase (or host) automated Postgres backups / PITR.
-- Test a restore once before relying on it.
-- Attachments live in Storage — include Storage in your backup/recovery plan.
+- Enable Postgres PITR / daily backups; test restore once.
+- Include Storage objects in recovery planning for attachments.
+- Export CSV is a convenience dump (transactions only, max 366 days), not a full backup.
+
+## Monitoring / incidents
+
+- Watch auth failures and 5xx rates in the host dashboard.
+- Public bucket incident: private immediately, rotate `SUPABASE_SERVICE_ROLE_KEY`, review signed URL usage.
+- Suspected overdraft race: confirm spend paths use `FOR UPDATE` locks (Stage 1).

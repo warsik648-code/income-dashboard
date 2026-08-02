@@ -7,6 +7,7 @@ import {
   ChartColumn,
   HandCoins,
   Settings,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react"
 
@@ -63,6 +64,12 @@ export const mainNavItems: NavItem[] = [
 ]
 
 export const secondaryNavItems: NavItem[] = [
+  {
+    title: "Audit",
+    href: "/dashboard/audit",
+    icon: ScrollText,
+    description: "Review recent changes to accounts and transactions.",
+  },
   {
     title: "Settings",
     href: "/dashboard/settings",
