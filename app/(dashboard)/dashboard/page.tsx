@@ -1,15 +1,36 @@
-import { LayoutDashboard } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { SectionPage } from "@/components/layout/section-page"
+import { DashboardView } from "@/components/dashboard/dashboard-view"
+import { auth } from "@/auth"
+import { listSelectableAccounts } from "@/lib/services/accounts"
+import { ensureExpenseCategories } from "@/lib/services/categories"
+import { getDashboard } from "@/lib/services/dashboard"
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
+
+  const userId = session.user.id
+  const [accounts, categories, data] = await Promise.all([
+    listSelectableAccounts(userId),
+    ensureExpenseCategories(userId),
+    getDashboard(userId),
+  ])
+
   return (
-    <SectionPage
-      title="Dashboard"
-      description="Your private overview of income, spending, balances, and upcoming renewals."
-      icon={LayoutDashboard}
-      emptyTitle="No activity yet"
-      emptyDescription="Once you start recording income and expenses, summaries and charts will appear here. No sample data is shown."
+    <DashboardView
+      data={data}
+      accounts={accounts.map((account) => ({
+        id: account.id,
+        name: account.name,
+        currency: account.currency,
+        type: account.type,
+        cachedBalance: account.cachedBalance.toString(),
+      }))}
+      expenseCategories={categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+      }))}
     />
   )
 }

@@ -78,3 +78,5 @@ export {
   listAnalyticsCategories,
   type AnalyticsResult,
 } from "./analytics"
+
+export { getDashboard, type DashboardResult } from "./dashboard"
