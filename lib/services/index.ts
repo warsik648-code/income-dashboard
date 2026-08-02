@@ -22,3 +22,14 @@ export {
 } from "./accounts"
 
 export { toAuditJson, writeAuditLog } from "./audit"
+
+export { recomputeCachedBalance } from "./balances"
+
+export {
+  IncomeServiceError,
+  createIncome,
+  listIncome,
+  softDeleteIncome,
+  updateIncome,
+  type IncomeListItem,
+} from "./income"

@@ -47,24 +47,22 @@ export type ConfirmRenewalPaymentResult = {
  * Signature and contract are locked to the approved architecture.
  */
 export async function confirmRenewalPayment(
-  _input: ConfirmRenewalPaymentInput
+  input: ConfirmRenewalPaymentInput
 ): Promise<ConfirmRenewalPaymentResult> {
-  throw new Error(
-    "confirmRenewalPayment: not implemented until FX migration is applied"
-  )
+  void input
+  throw new Error("confirmRenewalPayment: not implemented yet")
 }
 
 /**
  * Cancel a subscription without deleting payment history.
  * Sets status=CANCELLED and optional endDate; linked transactions remain.
  */
-export async function cancelSubscription(_input: {
+export async function cancelSubscription(input: {
   userId: string
   subscriptionId: string
   endDate?: Date
   reason?: string
 }): Promise<void> {
-  throw new Error(
-    "cancelSubscription: not implemented until FX migration is applied"
-  )
+  void input
+  throw new Error("cancelSubscription: not implemented yet")
 }

@@ -11,3 +11,11 @@ export {
   type CreateAccountInput,
   type UpdateAccountInput,
 } from "./accounts"
+
+export {
+  createIncomeSchema,
+  softDeleteIncomeSchema,
+  updateIncomeSchema,
+  type CreateIncomeInput,
+  type UpdateIncomeInput,
+} from "./income"

@@ -13,6 +13,7 @@ import {
   type MoneyDecimalString,
 } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
+import { recomputeCachedBalance } from "@/lib/services/balances"
 import type {
   CreateAccountInput,
   UpdateAccountInput,
@@ -30,40 +31,6 @@ export type AccountListItem = FinancialAccount
 function emptyToNull(value?: string | null) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
-}
-
-async function recomputeCachedBalance(
-  tx: Prisma.TransactionClient,
-  accountId: string,
-  currency: string
-) {
-  const income = await tx.transaction.aggregate({
-    where: {
-      accountId,
-      deletedAt: null,
-      type: "INCOME",
-      currency,
-    },
-    _sum: { amount: true },
-  })
-  const expense = await tx.transaction.aggregate({
-    where: {
-      accountId,
-      deletedAt: null,
-      type: "EXPENSE",
-      currency,
-    },
-    _sum: { amount: true },
-  })
-
-  const incomeSum = income._sum.amount ?? new Prisma.Decimal(0)
-  const expenseSum = expense._sum.amount ?? new Prisma.Decimal(0)
-  const balance = incomeSum.minus(expenseSum)
-
-  return tx.financialAccount.update({
-    where: { id: accountId },
-    data: { cachedBalance: balance },
-  })
 }
 
 export async function listAccounts(

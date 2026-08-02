@@ -1,15 +1,30 @@
-import { ArrowDownLeft } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { SectionPage } from "@/components/layout/section-page"
+import { IncomeView } from "@/components/income/income-view"
+import { auth } from "@/auth"
+import { listSelectableAccounts } from "@/lib/services/accounts"
+import { listIncome } from "@/lib/services/income"
 
-export default function IncomePage() {
+export default async function IncomePage() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect("/login")
+  }
+
+  const [accounts, entries] = await Promise.all([
+    listSelectableAccounts(session.user.id),
+    listIncome(session.user.id),
+  ])
+
   return (
-    <SectionPage
-      title="Income"
-      description="Record and review money received across TRUST, Binance, Bank, Cash, and other accounts."
-      icon={ArrowDownLeft}
-      emptyTitle="No income entries yet"
-      emptyDescription="Income forms will connect here later. Your ledger stays empty until you add real entries."
+    <IncomeView
+      accounts={accounts.map((account) => ({
+        id: account.id,
+        name: account.name,
+        currency: account.currency,
+        type: account.type,
+      }))}
+      entries={entries}
     />
   )
 }
