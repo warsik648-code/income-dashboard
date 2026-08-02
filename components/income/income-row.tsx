@@ -33,6 +33,8 @@ type IncomeRowProps = {
     counterparty: string | null
     notes: string | null
     paymentMethod: string | null
+    debtId?: string | null
+    subscriptionId?: string | null
     account: {
       id: string
       name: string
@@ -50,6 +52,7 @@ export function IncomeRow({ accounts, entry }: IncomeRowProps) {
     initialState
   )
   const when = new Date(entry.transactionDate).toLocaleString()
+  const isLinked = Boolean(entry.debtId || entry.subscriptionId)
 
   return (
     <Card className="border-border/70 bg-card/70 shadow-none">
@@ -64,6 +67,9 @@ export function IncomeRow({ accounts, entry }: IncomeRowProps) {
               <Badge variant="secondary">{entry.currency}</Badge>
               {entry.paymentMethod ? (
                 <Badge variant="outline">{entry.paymentMethod}</Badge>
+              ) : null}
+              {entry.debtId ? (
+                <Badge variant="secondary">Debt payment</Badge>
               ) : null}
             </CardDescription>
           </div>
@@ -95,24 +101,32 @@ export function IncomeRow({ accounts, entry }: IncomeRowProps) {
           title="Receipts & files"
         />
         <div className="flex flex-wrap items-center gap-2">
-          <EditIncomeDialog accounts={accounts} entry={entry} />
-          <form
-            action={formAction}
-            onSubmit={(event) => {
-              if (
-                !window.confirm(
-                  "Soft-delete this income entry? Account balance will be recalculated."
-                )
-              ) {
-                event.preventDefault()
-              }
-            }}
-          >
-            <input type="hidden" name="id" value={entry.id} />
-            <Button type="submit" size="sm" variant="ghost" disabled={pending}>
-              {pending ? "Removing…" : "Delete"}
-            </Button>
-          </form>
+          {isLinked ? (
+            <p className="text-sm text-muted-foreground">
+              Linked payment — manage from Debts.
+            </p>
+          ) : (
+            <>
+              <EditIncomeDialog accounts={accounts} entry={entry} />
+              <form
+                action={formAction}
+                onSubmit={(event) => {
+                  if (
+                    !window.confirm(
+                      "Soft-delete this income entry? Account balance will be recalculated."
+                    )
+                  ) {
+                    event.preventDefault()
+                  }
+                }}
+              >
+                <input type="hidden" name="id" value={entry.id} />
+                <Button type="submit" size="sm" variant="ghost" disabled={pending}>
+                  {pending ? "Removing…" : "Delete"}
+                </Button>
+              </form>
+            </>
+          )}
         </div>
         {state.error ? (
           <p className="text-sm text-destructive" role="alert">

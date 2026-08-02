@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { auth } from "@/auth"
+import { requireUserId } from "@/lib/auth/session"
 import {
   AttachmentServiceError,
   createSignedPreviewUrl,
@@ -25,11 +25,6 @@ export type AttachmentActionState = {
   previewMimeType?: string
 }
 
-async function requireUserId() {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Unauthorized")
-  return session.user.id
-}
 
 function revalidateAttachmentHosts() {
   revalidatePath("/dashboard/income")

@@ -194,8 +194,9 @@ export async function uploadAttachment(input: {
       })
 
     if (uploadError) {
+      console.error("[attachments] Upload failed:", uploadError.message)
       throw new AttachmentServiceError(
-        `Upload failed: ${uploadError.message}`
+        "Could not upload attachment. Please try again."
       )
     }
 
@@ -246,11 +247,11 @@ export async function uploadAttachment(input: {
   } catch (error) {
     if (error instanceof AttachmentServiceError) throw error
     if (error instanceof StorageConfigError) {
-      throw new AttachmentServiceError(error.message)
+      throw new AttachmentServiceError(
+        "File storage is unavailable. Try again later."
+      )
     }
-    if (error instanceof Error) {
-      throw new AttachmentServiceError(error.message)
-    }
+    console.error("[attachments] Upload error:", error)
     throw new AttachmentServiceError("Could not upload attachment.")
   }
 }
@@ -284,9 +285,11 @@ export async function createSignedPreviewUrl(
       .createSignedUrl(row.storageKey, expiresIn)
 
     if (error || !data?.signedUrl) {
-      throw new AttachmentServiceError(
-        error?.message ?? "Could not create preview URL."
+      console.error(
+        "[attachments] Signed URL failed:",
+        error?.message ?? "missing signedUrl"
       )
+      throw new AttachmentServiceError("Could not create preview URL.")
     }
 
     return {
@@ -298,8 +301,11 @@ export async function createSignedPreviewUrl(
   } catch (error) {
     if (error instanceof AttachmentServiceError) throw error
     if (error instanceof StorageConfigError) {
-      throw new AttachmentServiceError(error.message)
+      throw new AttachmentServiceError(
+        "File storage is unavailable. Try again later."
+      )
     }
+    console.error("[attachments] Preview error:", error)
     throw new AttachmentServiceError("Could not create preview URL.")
   }
 }
@@ -360,8 +366,11 @@ export async function softDeleteAttachment(
   } catch (error) {
     if (error instanceof AttachmentServiceError) throw error
     if (error instanceof StorageConfigError) {
-      throw new AttachmentServiceError(error.message)
+      throw new AttachmentServiceError(
+        "File storage is unavailable. Try again later."
+      )
     }
+    console.error("[attachments] Delete error:", error)
     throw new AttachmentServiceError("Could not delete attachment.")
   }
 }

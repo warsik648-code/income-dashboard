@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { signOut } from "@/auth"
 
-import { auth } from "@/auth"
+import { requireUserId } from "@/lib/auth/session"
 import {
   SettingsServiceError,
   archiveCategory,
@@ -27,11 +27,6 @@ export type SettingsActionState = {
   message?: string
 }
 
-async function requireUserId() {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Unauthorized")
-  return session.user.id
-}
 
 function revalidateSettings() {
   revalidatePath("/dashboard/settings")

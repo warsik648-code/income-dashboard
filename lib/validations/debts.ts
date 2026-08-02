@@ -49,7 +49,7 @@ const baseDebtSchema = z
   })
 
 export const createDebtSchema = baseDebtSchema
-export const updateDebtSchema = baseDebtSchema.extend({
+export const updateDebtSchema = baseDebtSchema.safeExtend({
   id: z.string().min(1),
   status: status,
 })

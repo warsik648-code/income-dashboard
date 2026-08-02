@@ -1,25 +1,20 @@
+import "server-only"
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 export class StorageConfigError extends Error {
-  constructor(message: string) {
+  constructor(message = "File storage is not configured.") {
     super(message)
     this.name = "StorageConfigError"
   }
 }
 
-// Prevent accidental browser bundling of the service-role client.
-if (typeof window !== "undefined") {
-  throw new Error(
-    "lib/storage/supabase is server-only and must not run in the browser."
-  )
-}
-
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim()
   if (!value) {
-    throw new StorageConfigError(
-      `Missing ${name}. Add Supabase Storage credentials to your environment.`
-    )
+    // Do not include env var names in thrown messages that may reach clients.
+    console.error(`[storage] Missing required environment variable: ${name}`)
+    throw new StorageConfigError()
   }
   return value
 }

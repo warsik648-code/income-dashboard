@@ -14,7 +14,11 @@ import {
   type MoneyDecimalString,
 } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
-import { recomputeCachedBalance } from "@/lib/services/balances"
+import {
+  BalanceServiceError,
+  lockAndRefreshAccountBalance,
+  recomputeCachedBalance,
+} from "@/lib/services/balances"
 import { ensureExpenseCategories } from "@/lib/services/categories"
 import type {
   CreateDebtInput,
@@ -388,6 +392,17 @@ export async function recordDebtPayment(
   }
 
   return prisma.$transaction(async (tx) => {
+    const lockedDebt = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "Debt"
+      WHERE id = ${input.debtId}
+        AND "userId" = ${userId}
+        AND "deletedAt" IS NULL
+      FOR UPDATE
+    `
+    if (lockedDebt.length === 0) {
+      throw new DebtServiceError("Debt not found.")
+    }
+
     const debt = await tx.debt.findFirst({
       where: { id: input.debtId, userId, deletedAt: null },
     })
@@ -425,7 +440,15 @@ export async function recordDebtPayment(
     const accountId = input.accountId?.trim()
 
     if (accountId) {
-      const account = await getOwnedActiveAccount(tx, userId, accountId)
+      let account
+      try {
+        account = await lockAndRefreshAccountBalance(tx, userId, accountId)
+      } catch (error) {
+        if (error instanceof BalanceServiceError) {
+          throw new DebtServiceError(error.message)
+        }
+        throw error
+      }
       if (account.currency !== debt.currency) {
         throw new DebtServiceError(
           "Payment account currency must match the debt currency."

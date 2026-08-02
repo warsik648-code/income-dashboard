@@ -34,7 +34,14 @@ export {
 
 export { toAuditJson, writeAuditLog } from "./audit"
 
-export { recomputeCachedBalance } from "./balances"
+export {
+  BalanceServiceError,
+  lockAndRefreshAccountBalance,
+  lockAndRefreshAccounts,
+  recomputeCachedBalance,
+} from "./balances"
+
+export { assertStandaloneMutableTransaction } from "./linked-transactions"
 
 export {
   IncomeServiceError,

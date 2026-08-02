@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
 import { recomputeCachedBalance } from "@/lib/services/balances"
+import { assertStandaloneMutableTransaction } from "@/lib/services/linked-transactions"
 import type {
   CreateIncomeInput,
   UpdateIncomeInput,
@@ -167,6 +168,12 @@ export async function updateIncome(
       )
     }
 
+    await assertStandaloneMutableTransaction(
+      tx,
+      existing,
+      (message) => new IncomeServiceError(message)
+    )
+
     const account = await tx.financialAccount.findFirst({
       where: {
         id: input.accountId,
@@ -258,6 +265,12 @@ export async function softDeleteIncome(
         "Opening balance entries are managed from Accounts."
       )
     }
+
+    await assertStandaloneMutableTransaction(
+      tx,
+      existing,
+      (message) => new IncomeServiceError(message)
+    )
 
     const deleted = await tx.transaction.update({
       where: { id: existing.id },

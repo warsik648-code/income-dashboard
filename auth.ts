@@ -98,23 +98,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       })
 
       if (!dbUser) {
-        return {
-          ...token,
-          sub: undefined,
-          email: undefined,
-          pwdAt: undefined,
-        }
+        // Returning null deletes the JWT / clears the session cookie.
+        return null
       }
 
       const currentPwdAt = dbUser.passwordChangedAt?.getTime() ?? 0
       if ((token.pwdAt as number | undefined) !== currentPwdAt) {
-        // Password changed elsewhere — reject this JWT.
-        return {
-          ...token,
-          sub: undefined,
-          email: undefined,
-          pwdAt: undefined,
-        }
+        // Password changed elsewhere — invalidate this JWT.
+        return null
       }
 
       token.email = dbUser.email
@@ -122,6 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (!token.sub) {
+        // No valid subject — empty id is rejected by layout / requireUserId / middleware.
         return {
           ...session,
           user: {
@@ -130,6 +122,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: "",
             name: null,
           },
+          expires: new Date(0).toISOString(),
         }
       }
       if (session.user) {

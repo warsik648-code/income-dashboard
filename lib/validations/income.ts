@@ -39,7 +39,7 @@ export const createIncomeSchema = z
     }
   })
 
-export const updateIncomeSchema = createIncomeSchema.extend({
+export const updateIncomeSchema = createIncomeSchema.safeExtend({
   id: z.string().min(1),
 })
 

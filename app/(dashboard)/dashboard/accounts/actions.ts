@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { auth } from "@/auth"
+import { requireUserId } from "@/lib/auth/session"
 import {
   AccountServiceError,
   archiveAccount,
@@ -21,13 +21,6 @@ export type AccountActionState = {
   error?: string
 }
 
-async function requireUserId() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized")
-  }
-  return session.user.id
-}
 
 export async function createAccountAction(
   _prev: AccountActionState,

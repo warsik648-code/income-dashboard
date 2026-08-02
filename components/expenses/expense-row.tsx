@@ -41,6 +41,8 @@ type ExpenseRowProps = {
     notes: string | null
     paymentMethod: string | null
     deletedAt: Date | string | null
+    subscriptionId?: string | null
+    debtId?: string | null
     account: { id: string; name: string; type: string; currency: string }
     category: { id: string; name: string } | null
   }
@@ -63,6 +65,8 @@ export function ExpenseRow({
     initialState
   )
 
+  const isLinked = Boolean(entry.subscriptionId || entry.debtId)
+
   return (
     <Card className="border-border/70 bg-card/70 shadow-none">
       <CardHeader className="gap-2">
@@ -79,6 +83,12 @@ export function ExpenseRow({
               <Badge variant="outline">{entry.currency}</Badge>
               {entry.paymentMethod ? (
                 <Badge variant="outline">{entry.paymentMethod}</Badge>
+              ) : null}
+              {entry.subscriptionId ? (
+                <Badge variant="secondary">Subscription</Badge>
+              ) : null}
+              {entry.debtId ? (
+                <Badge variant="secondary">Debt payment</Badge>
               ) : null}
               {entry.deletedAt ? (
                 <Badge variant="destructive">Deleted</Badge>
@@ -119,7 +129,12 @@ export function ExpenseRow({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          {!entry.deletedAt ? (
+          {isLinked ? (
+            <p className="text-sm text-muted-foreground">
+              Linked payment — manage from{" "}
+              {entry.subscriptionId ? "Subscriptions" : "Debts"}.
+            </p>
+          ) : !entry.deletedAt ? (
             <>
               <EditExpenseDialog
                 accounts={accounts}

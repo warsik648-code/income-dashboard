@@ -7,7 +7,13 @@ import {
 import { prisma } from "@/lib/db"
 import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
-import { recomputeCachedBalance } from "@/lib/services/balances"
+import {
+  BalanceServiceError,
+  lockAndRefreshAccountBalance,
+  lockAndRefreshAccounts,
+  recomputeCachedBalance,
+} from "@/lib/services/balances"
+import { assertStandaloneMutableTransaction } from "@/lib/services/linked-transactions"
 import type {
   CreateExpenseInput,
   ExpenseFilters,
@@ -39,23 +45,11 @@ function emptyToNull(value?: string | null) {
   return trimmed ? trimmed : null
 }
 
-async function getOwnedActiveAccount(
-  client: Prisma.TransactionClient | typeof prisma,
-  userId: string,
-  accountId: string
-) {
-  const account = await client.financialAccount.findFirst({
-    where: {
-      id: accountId,
-      userId,
-      deletedAt: null,
-      isArchived: false,
-    },
-  })
-  if (!account) {
-    throw new ExpenseServiceError("Select an active account.")
+function mapBalanceError(error: unknown): never {
+  if (error instanceof BalanceServiceError) {
+    throw new ExpenseServiceError(error.message)
   }
-  return account
+  throw error
 }
 
 async function getOwnedExpenseCategory(
@@ -177,11 +171,26 @@ export async function createExpense(
   userId: string,
   input: CreateExpenseInput
 ): Promise<Transaction> {
-  const account = await getOwnedActiveAccount(prisma, userId, input.accountId)
   await getOwnedExpenseCategory(prisma, userId, input.categoryId)
-  const fx = buildExpenseFx(input.amount, account.currency, input.exchangeRate)
 
   return prisma.$transaction(async (tx) => {
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(
+        tx,
+        userId,
+        input.accountId
+      )
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
+    const fx = buildExpenseFx(
+      input.amount,
+      account.currency,
+      input.exchangeRate
+    )
+
     await assertSufficientBalance(tx, account, fx.amount, {
       allowOverdraft: input.allowOverdraft,
     })
@@ -255,8 +264,29 @@ export async function updateExpense(
       throw new ExpenseServiceError("Expense not found.")
     }
 
-    const account = await getOwnedActiveAccount(tx, userId, input.accountId)
+    await assertStandaloneMutableTransaction(
+      tx,
+      existing,
+      (message) => new ExpenseServiceError(message)
+    )
+
     await getOwnedExpenseCategory(tx, userId, input.categoryId)
+
+    let locked
+    try {
+      locked = await lockAndRefreshAccounts(tx, userId, [
+        existing.accountId,
+        input.accountId,
+      ])
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
+    const account = locked.get(input.accountId)
+    if (!account) {
+      throw new ExpenseServiceError("Select an active account.")
+    }
+
     const fx = buildExpenseFx(input.amount, account.currency, input.exchangeRate)
 
     await assertSufficientBalance(tx, account, fx.amount, {
@@ -297,9 +327,8 @@ export async function updateExpense(
 
     const touched = new Set([existing.accountId, account.id])
     for (const accountId of touched) {
-      const acct = await tx.financialAccount.findFirstOrThrow({
-        where: { id: accountId },
-      })
+      const acct = locked.get(accountId)
+      if (!acct) continue
       await recomputeCachedBalance(tx, acct.id, acct.currency)
     }
 
@@ -324,6 +353,24 @@ export async function softDeleteExpense(
       throw new ExpenseServiceError("Expense not found.")
     }
 
+    await assertStandaloneMutableTransaction(
+      tx,
+      existing,
+      (message) => new ExpenseServiceError(message)
+    )
+
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(
+        tx,
+        userId,
+        existing.accountId,
+        { requireActive: false }
+      )
+    } catch (error) {
+      mapBalanceError(error)
+    }
+
     const deleted = await tx.transaction.update({
       where: { id: existing.id },
       data: { deletedAt: new Date() },
@@ -339,9 +386,6 @@ export async function softDeleteExpense(
       reason: "Expense soft-deleted",
     })
 
-    const account = await tx.financialAccount.findFirstOrThrow({
-      where: { id: existing.accountId },
-    })
     await recomputeCachedBalance(tx, account.id, account.currency)
 
     return deleted
@@ -366,7 +410,22 @@ export async function restoreExpense(
       throw new ExpenseServiceError("Deleted expense not found.")
     }
 
-    const account = await getOwnedActiveAccount(tx, userId, existing.accountId)
+    await assertStandaloneMutableTransaction(
+      tx,
+      existing,
+      (message) => new ExpenseServiceError(message)
+    )
+
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(
+        tx,
+        userId,
+        existing.accountId
+      )
+    } catch (error) {
+      mapBalanceError(error)
+    }
 
     await assertSufficientBalance(tx, account, existing.amount, {
       allowOverdraft: options?.allowOverdraft,

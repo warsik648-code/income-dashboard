@@ -18,7 +18,11 @@ import {
 } from "@/lib/money/subscription-due"
 import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
-import { recomputeCachedBalance } from "@/lib/services/balances"
+import {
+  BalanceServiceError,
+  lockAndRefreshAccountBalance,
+  recomputeCachedBalance,
+} from "@/lib/services/balances"
 import { ensureExpenseCategories } from "@/lib/services/categories"
 import type {
   ConfirmPaidInput,
@@ -433,6 +437,18 @@ export async function confirmRenewalPayment(
   const subscriptionId = input.subscriptionId
 
   return prisma.$transaction(async (tx) => {
+    // Lock subscription row first to serialize renewal confirms.
+    const lockedSub = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "Subscription"
+      WHERE id = ${subscriptionId}
+        AND "userId" = ${userId}
+        AND "deletedAt" IS NULL
+      FOR UPDATE
+    `
+    if (lockedSub.length === 0) {
+      throw new SubscriptionServiceError("Subscription not found.")
+    }
+
     const subscription = await tx.subscription.findFirst({
       where: { id: subscriptionId, userId, deletedAt: null },
     })
@@ -449,7 +465,15 @@ export async function confirmRenewalPayment(
     }
 
     const accountId = input.accountId?.trim() || subscription.accountId
-    const account = await getOwnedActiveAccount(tx, userId, accountId)
+    let account
+    try {
+      account = await lockAndRefreshAccountBalance(tx, userId, accountId)
+    } catch (error) {
+      if (error instanceof BalanceServiceError) {
+        throw new SubscriptionServiceError(error.message)
+      }
+      throw error
+    }
 
     if (account.currency !== subscription.currency) {
       throw new SubscriptionServiceError(
@@ -458,6 +482,7 @@ export async function confirmRenewalPayment(
     }
 
     const periodKey = renewalPeriodKey(subscription.nextRenewalDate)
+    // Temporary app-level dedupe until DB unique constraint lands (Critical #3).
     const duplicate = await tx.transaction.findFirst({
       where: {
         userId,

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { auth } from "@/auth"
+import { requireUserId } from "@/lib/auth/session"
 import {
   DebtServiceError,
   createDebt,
@@ -24,11 +24,6 @@ export type DebtActionState = {
   error?: string
 }
 
-async function requireUserId() {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Unauthorized")
-  return session.user.id
-}
 
 function debtFormFields(formData: FormData) {
   return {

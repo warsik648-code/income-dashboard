@@ -90,7 +90,7 @@ const baseSubscriptionSchema = z
   })
 
 export const createSubscriptionSchema = baseSubscriptionSchema
-export const updateSubscriptionSchema = baseSubscriptionSchema.extend({
+export const updateSubscriptionSchema = baseSubscriptionSchema.safeExtend({
   id: z.string().min(1),
 })
 

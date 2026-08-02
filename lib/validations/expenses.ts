@@ -48,7 +48,7 @@ const baseExpenseSchema = z
   })
 
 export const createExpenseSchema = baseExpenseSchema
-export const updateExpenseSchema = baseExpenseSchema.extend({
+export const updateExpenseSchema = baseExpenseSchema.safeExtend({
   id: z.string().min(1),
 })
 

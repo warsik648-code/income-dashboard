@@ -9,8 +9,10 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const session = await auth()
+  const userId = session?.user?.id?.trim()
 
-  if (!session?.user) {
+  // Require a non-empty user id (rejects stale/invalid JWTs).
+  if (!userId || !session?.user) {
     redirect("/login")
   }
 
