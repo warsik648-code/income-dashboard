@@ -31,10 +31,10 @@ function formFields(formData: FormData) {
     exchangeRate: formData.get("exchangeRate") ?? "",
     exchangeRateSource: formData.get("exchangeRateSource") ?? "",
     transactionDate: formData.get("transactionDate"),
-    description: formData.get("description"),
-    counterparty: formData.get("counterparty"),
+    description: formData.get("description") ?? "",
+    counterparty: formData.get("counterparty") ?? "",
     notes: formData.get("notes") ?? "",
-    paymentMethod: formData.get("paymentMethod"),
+    paymentMethod: formData.get("paymentMethod") ?? "",
     allowOverdraft: formData.get("allowOverdraft") ?? "",
   }
 }

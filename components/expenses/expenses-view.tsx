@@ -16,6 +16,7 @@ import type { ExpenseListItem } from "@/lib/services/expenses"
 type ExpensesViewProps = {
   accounts: ExpenseAccountOption[]
   categories: ExpenseCategoryOption[]
+  frequentCategoryIds?: string[]
   entries: ExpenseListItem[]
   filters: {
     accountId?: string
@@ -31,6 +32,7 @@ type ExpensesViewProps = {
 export function ExpensesView({
   accounts,
   categories,
+  frequentCategoryIds = [],
   entries,
   filters,
 }: ExpensesViewProps) {
@@ -41,7 +43,7 @@ export function ExpensesView({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <PageHeader
           title="Expenses"
-          description="Track spending by category, merchant, payment method, and account. Balances update with Decimal-safe math."
+          description="Quick daily spending entry — account, amount, category, and time. Optional details stay out of the way."
         />
         <div className="flex flex-wrap gap-2">
           <Button
@@ -51,7 +53,11 @@ export function ExpensesView({
             <ArrowLeftRight className="size-4" />
             Transfer Funds
           </Button>
-          <CreateExpenseDialog accounts={accounts} categories={categories} />
+          <CreateExpenseDialog
+            accounts={accounts}
+            categories={categories}
+            frequentCategoryIds={frequentCategoryIds}
+          />
         </div>
       </div>
 
@@ -80,6 +86,7 @@ export function ExpensesView({
               key={entry.id}
               accounts={accounts}
               categories={categories}
+              frequentCategoryIds={frequentCategoryIds}
               entry={entry}
               showDeleted={showDeleted}
             />

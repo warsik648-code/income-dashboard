@@ -19,6 +19,7 @@ import {
   recomputeCachedBalance,
 } from "@/lib/services/balances"
 import { assertStandaloneMutableTransaction } from "@/lib/services/linked-transactions"
+import { resolveExpenseDescription } from "@/lib/expenses/description"
 import type {
   CreateExpenseInput,
   ExpenseFilters,
@@ -48,6 +49,11 @@ export type ExpenseListItem = Transaction & {
 function emptyToNull(value?: string | null) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
+}
+
+function parsePaymentMethod(value?: string | null): PaymentMethod | null {
+  if (!value) return null
+  return value as PaymentMethod
 }
 
 function mapBalanceError(error: unknown): never {
@@ -176,7 +182,11 @@ export async function createExpense(
   userId: string,
   input: CreateExpenseInput
 ): Promise<Transaction> {
-  await getOwnedExpenseCategory(prisma, userId, input.categoryId)
+  const category = await getOwnedExpenseCategory(
+    prisma,
+    userId,
+    input.categoryId
+  )
 
   return prisma.$transaction(async (tx) => {
     let account
@@ -214,10 +224,10 @@ export async function createExpense(
         exchangeRateAt: fx.exchangeRateAt,
         exchangeRateSource: fx.exchangeRateSource,
         transactionDate: new Date(input.transactionDate),
-        description: input.description.trim(),
-        counterparty: input.counterparty.trim(),
+        description: resolveExpenseDescription(input.description, category.name),
+        counterparty: emptyToNull(input.counterparty),
         notes: emptyToNull(input.notes),
-        paymentMethod: input.paymentMethod as PaymentMethod,
+        paymentMethod: parsePaymentMethod(input.paymentMethod),
       },
     })
 
@@ -276,7 +286,11 @@ export async function updateExpense(
       (message) => new ExpenseServiceError(message)
     )
 
-    await getOwnedExpenseCategory(tx, userId, input.categoryId)
+    const category = await getOwnedExpenseCategory(
+      tx,
+      userId,
+      input.categoryId
+    )
 
     let locked
     try {
@@ -321,10 +335,10 @@ export async function updateExpense(
           ? existing.exchangeRateSource
           : fx.exchangeRateSource,
         transactionDate: new Date(input.transactionDate),
-        description: input.description.trim(),
-        counterparty: input.counterparty.trim(),
+        description: resolveExpenseDescription(input.description, category.name),
+        counterparty: emptyToNull(input.counterparty),
         notes: emptyToNull(input.notes),
-        paymentMethod: input.paymentMethod as PaymentMethod,
+        paymentMethod: parsePaymentMethod(input.paymentMethod),
       },
     })
 

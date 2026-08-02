@@ -2,6 +2,10 @@ import { redirect } from "next/navigation"
 
 import { ExpensesView } from "@/components/expenses/expenses-view"
 import { auth } from "@/auth"
+import {
+  frequentCategoryIds,
+  orderExpenseCategories,
+} from "@/lib/expenses/category-order"
 import { listSelectableAccounts } from "@/lib/services/accounts"
 import { ensureExpenseCategories } from "@/lib/services/categories"
 import { listExpenses } from "@/lib/services/expenses"
@@ -36,6 +40,17 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     listExpenses(session.user.id, filters),
   ])
 
+  const recentCategoryIds = entries
+    .map((entry) => entry.categoryId)
+    .filter((id): id is string => Boolean(id))
+  const orderedCategories = orderExpenseCategories(
+    categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+    })),
+    recentCategoryIds
+  )
+
   return (
     <ExpensesView
       accounts={accounts.map((account) => ({
@@ -44,10 +59,8 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
         currency: account.currency,
         cachedBalance: account.cachedBalance.toString(),
       }))}
-      categories={categories.map((category) => ({
-        id: category.id,
-        name: category.name,
-      }))}
+      categories={orderedCategories}
+      frequentCategoryIds={frequentCategoryIds(recentCategoryIds)}
       entries={entries}
       filters={filters}
     />

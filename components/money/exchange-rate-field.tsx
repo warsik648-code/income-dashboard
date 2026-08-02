@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import type { ExchangeRatesResult } from "@/lib/exchange-rates/types"
 import { EXCHANGE_RATE_ATTRIBUTION } from "@/lib/exchange-rates/types"
@@ -23,6 +23,17 @@ type ExchangeRateFieldProps = {
   /** When true, start from saved rate and do not auto-load live rates. */
   editingExisting?: boolean
   idPrefix?: string
+  /** Prefer inline validation over native browser required popups. */
+  htmlRequired?: boolean
+  /** Tighter layout for secondary / collapsible sections. */
+  compact?: boolean
+  /** Notify parent when rate readiness changes (for compact warnings). */
+  onRateStateChange?: (state: {
+    rate: string
+    loading: boolean
+    error: string | null
+    isUsd: boolean
+  }) => void
 }
 
 function statusLabel(mode: RateMode, isStale: boolean, unavailable: boolean) {
@@ -67,6 +78,9 @@ export function ExchangeRateField({
   savedExchangeRate,
   editingExisting = false,
   idPrefix = "",
+  htmlRequired = true,
+  compact = false,
+  onRateStateChange,
 }: ExchangeRateFieldProps) {
   const rateInputId = `${idPrefix}exchangeRate`
   const isUsd = currency === "USD"
@@ -83,6 +97,19 @@ export function ExchangeRateField({
   const [prevCurrency, setPrevCurrency] = useState(currency)
   const [prevEditing, setPrevEditing] = useState(editingExisting)
   const [prevSaved, setPrevSaved] = useState(savedExchangeRate)
+
+  const onRateStateChangeRef = useRef(onRateStateChange)
+  useEffect(() => {
+    onRateStateChangeRef.current = onRateStateChange
+  }, [onRateStateChange])
+  useEffect(() => {
+    onRateStateChangeRef.current?.({
+      rate,
+      loading,
+      error: loadError,
+      isUsd,
+    })
+  }, [rate, loading, loadError, isUsd])
 
   // Adjust local state when the selected currency / edit context changes.
   if (
@@ -201,7 +228,13 @@ export function ExchangeRateField({
     payload && !isUsd ? rateForCurrency(payload, currency) : null
 
   return (
-    <div className="grid gap-2 rounded-lg border border-border/70 bg-background/40 p-3">
+    <div
+      className={
+        compact
+          ? "grid gap-2"
+          : "grid gap-2 rounded-lg border border-border/70 bg-background/40 p-3"
+      }
+    >
       <input type="hidden" name="exchangeRateSource" value={sourceValue} />
 
       {isUsd ? (
@@ -224,14 +257,17 @@ export function ExchangeRateField({
                 id={rateInputId}
                 name="exchangeRate"
                 inputMode="decimal"
-                required
+                required={htmlRequired}
                 disabled={disabled || loading}
                 value={rate}
                 onChange={(e) => {
                   setRate(e.target.value)
                   setMode("manual")
                 }}
-                placeholder={`${currency} per 1 USD`}
+                placeholder={
+                  loading ? "Loading live rate…" : `${currency} per 1 USD`
+                }
+                className="h-11 text-base md:h-8 md:text-sm"
               />
             </div>
             <div className="flex flex-wrap gap-2">

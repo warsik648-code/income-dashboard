@@ -26,6 +26,7 @@ import {
 type ExpenseRowProps = {
   accounts: ExpenseAccountOption[]
   categories: ExpenseCategoryOption[]
+  frequentCategoryIds?: string[]
   showDeleted?: boolean
   entry: {
     id: string
@@ -53,6 +54,7 @@ const initialState: ExpenseActionState = {}
 export function ExpenseRow({
   accounts,
   categories,
+  frequentCategoryIds = [],
   entry,
   showDeleted,
 }: ExpenseRowProps) {
@@ -139,6 +141,7 @@ export function ExpenseRow({
               <EditExpenseDialog
                 accounts={accounts}
                 categories={categories}
+                frequentCategoryIds={frequentCategoryIds}
                 entry={entry}
               />
               <form

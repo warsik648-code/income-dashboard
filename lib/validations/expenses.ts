@@ -3,15 +3,18 @@ import { z } from "zod"
 import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
-const paymentMethod = z.enum([
-  "POS",
-  "CASH",
-  "BANK_TRANSFER",
-  "CRYPTO_TRANSFER",
-  "BINANCE",
-  "TRUST",
-  "OTHER",
-])
+const paymentMethod = z
+  .enum([
+    "POS",
+    "CASH",
+    "BANK_TRANSFER",
+    "CRYPTO_TRANSFER",
+    "BINANCE",
+    "TRUST",
+    "OTHER",
+    "",
+  ])
+  .optional()
 
 const exchangeRateSource = z
   .enum(["MANUAL", "USER_OVERRIDE", "PROVIDER", "FIXED_USD", ""])
@@ -25,12 +28,18 @@ const baseExpenseSchema = z
     exchangeRate: z.string().trim().optional().or(z.literal("")),
     exchangeRateSource,
     transactionDate: z.string().min(1, "Date and time are required"),
-    description: z.string().trim().min(1, "Description is required").max(200),
+    description: z
+      .string()
+      .trim()
+      .max(200)
+      .optional()
+      .or(z.literal("")),
     counterparty: z
       .string()
       .trim()
-      .min(1, "Merchant or recipient is required")
-      .max(120),
+      .max(120)
+      .optional()
+      .or(z.literal("")),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
     paymentMethod,
     allowOverdraft: z

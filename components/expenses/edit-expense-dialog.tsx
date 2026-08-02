@@ -8,8 +8,10 @@ import {
 } from "@/app/(dashboard)/dashboard/expenses/actions"
 import {
   ExpenseFormFields,
+  toExpenseDateTimeLocalValue,
   type ExpenseAccountOption,
   type ExpenseCategoryOption,
+  type ExpenseFormFieldsHandle,
 } from "@/components/expenses/expense-form-fields"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,15 +26,10 @@ import {
 
 const initialState: ExpenseActionState = {}
 
-function toDateTimeLocalValue(iso: string | Date) {
-  const date = typeof iso === "string" ? new Date(iso) : iso
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
 type EditExpenseDialogProps = {
   accounts: ExpenseAccountOption[]
   categories: ExpenseCategoryOption[]
+  frequentCategoryIds?: string[]
   entry: {
     id: string
     accountId: string
@@ -50,9 +47,11 @@ type EditExpenseDialogProps = {
 export function EditExpenseDialog({
   accounts,
   categories,
+  frequentCategoryIds = [],
   entry,
 }: EditExpenseDialogProps) {
   const [open, setOpen] = useState(false)
+  const fieldsRef = useRef<ExpenseFormFieldsHandle>(null)
   const [state, formAction, pending] = useActionState(
     updateExpenseAction,
     initialState
@@ -67,30 +66,43 @@ export function EditExpenseDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm">Edit</Button>} />
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[min(92vh,44rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit expense</DialogTitle>
           <DialogDescription>
-            Balance is recomputed safely after every change.
+            Balance is recomputed safely after every change. Historical FX stays
+            frozen unless amount, currency, or rate changes.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="grid gap-4">
+        <form
+          action={formAction}
+          className="grid gap-4"
+          noValidate
+          onSubmit={(event) => {
+            if (!fieldsRef.current?.validate()) {
+              event.preventDefault()
+            }
+          }}
+        >
           <input type="hidden" name="id" value={entry.id} />
           <ExpenseFormFields
+            ref={fieldsRef}
             accounts={accounts}
             categories={categories}
+            frequentCategoryIds={frequentCategoryIds}
             disabled={pending}
             editingExisting
+            detailsOpenDefault
             defaults={{
               accountId: entry.accountId,
               categoryId: entry.categoryId ?? undefined,
               amount: entry.amount.toString(),
               exchangeRate: entry.exchangeRate.toString(),
-              transactionDate: toDateTimeLocalValue(entry.transactionDate),
+              transactionDate: toExpenseDateTimeLocalValue(entry.transactionDate),
               description: entry.description,
               counterparty: entry.counterparty ?? "",
               notes: entry.notes ?? "",
-              paymentMethod: entry.paymentMethod ?? "OTHER",
+              paymentMethod: entry.paymentMethod ?? "",
             }}
           />
           {state.error ? (
@@ -102,12 +114,13 @@ export function EditExpenseDialog({
             <Button
               type="button"
               variant="outline"
+              className="h-11"
               disabled={pending}
               onClick={() => setOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" className="h-11" disabled={pending}>
               {pending ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
