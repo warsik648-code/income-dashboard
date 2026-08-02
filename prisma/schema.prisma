@@ -1,7 +1,9 @@
 // Income Dashboard — Prisma schema
 // Money fields use Decimal(19, 4). Amounts on Transaction are always positive;
 // direction comes from TransactionType. Soft-delete via deletedAt.
-// Do not run migrations until explicitly approved.
+// FX: amount/currency are ORIGINAL; baseAmountUsd is a frozen USD snapshot.
+// exchangeRate = USD per 1 unit of original currency.
+// Subscription renewals create expenses only when payment is confirmed (never on date alone).
 
 generator client {
   provider = "prisma-client"
@@ -58,12 +60,41 @@ enum AttachmentEntityType {
   TRANSACTION
   DEBT
   DEBT_PAYMENT
+  SUBSCRIPTION
 }
 
 enum StorageProvider {
   LOCAL
   S3
   R2
+}
+
+enum BillingFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  TRIAL
+  EXPIRED
+}
+
+enum ExchangeRateSource {
+  MANUAL
+  USER_OVERRIDE
+  PROVIDER
+  FIXED_USD
+}
+
+enum AssetClass {
+  FIAT
+  CRYPTO
 }
 
 model User {
@@ -76,12 +107,13 @@ model User {
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
-  accounts     FinancialAccount[]
-  categories   Category[]
-  transactions Transaction[]
-  debts        Debt[]
-  attachments  Attachment[]
-  auditLogs    AuditLog[]
+  accounts      FinancialAccount[]
+  categories    Category[]
+  transactions  Transaction[]
+  debts         Debt[]
+  subscriptions Subscription[]
+  attachments   Attachment[]
+  auditLogs     AuditLog[]
 }
 
 model FinancialAccount {
@@ -90,18 +122,22 @@ model FinancialAccount {
   name          String
   type          AccountType
   currency      String
+  assetClass    AssetClass  @default(FIAT)
+  /// Native units: fiat money or crypto quantity (never mixed-currency sum)
   cachedBalance Decimal     @default(0) @db.Decimal(19, 4)
   isArchived    Boolean     @default(false)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   deletedAt     DateTime?
 
-  user         User          @relation(fields: [userId], references: [id])
-  transactions Transaction[]
-  debts        Debt[]
+  user          User           @relation(fields: [userId], references: [id])
+  transactions  Transaction[]
+  debts         Debt[]
+  subscriptions Subscription[]
 
   @@unique([userId, type, name])
   @@index([userId, deletedAt])
+  @@index([userId, assetClass, deletedAt])
 }
 
 model Category {
@@ -114,8 +150,9 @@ model Category {
   updatedAt DateTime        @updatedAt
   deletedAt DateTime?
 
-  user         User          @relation(fields: [userId], references: [id])
-  transactions Transaction[]
+  user          User           @relation(fields: [userId], references: [id])
+  transactions  Transaction[]
+  subscriptions Subscription[]
 
   @@unique([userId, kind, name])
   @@index([userId, kind, deletedAt])
@@ -127,44 +164,94 @@ model Transaction {
   accountId       String
   categoryId      String?
   type            TransactionType
+  /// ORIGINAL amount — never overwrite with USD
   amount          Decimal          @db.Decimal(19, 4)
+  /// ORIGINAL currency / asset code
   currency        String
+  /// USD per 1 unit of original currency (frozen at save)
+  exchangeRate    Decimal          @db.Decimal(24, 12)
+  /// Frozen USD snapshot: amount * exchangeRate
+  baseAmountUsd   Decimal          @db.Decimal(19, 4)
+  exchangeRateAt  DateTime
+  exchangeRateSource ExchangeRateSource
   transactionDate DateTime
   description     String
   counterparty    String?
   paymentMethod   PaymentMethod?
   notes           String?
   debtId          String?
+  subscriptionId  String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
-  user     User             @relation(fields: [userId], references: [id])
-  account  FinancialAccount @relation(fields: [accountId], references: [id])
-  category Category?        @relation(fields: [categoryId], references: [id])
-  debt     Debt?            @relation(fields: [debtId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  account      FinancialAccount @relation(fields: [accountId], references: [id])
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  debt         Debt?            @relation(fields: [debtId], references: [id])
+  subscription Subscription?    @relation(fields: [subscriptionId], references: [id])
 
   @@index([userId, type, transactionDate])
   @@index([userId, accountId, deletedAt])
   @@index([userId, currency, deletedAt])
   @@index([debtId])
+  @@index([subscriptionId])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  name                 String
+  provider             String
+  logoUrl              String?
+  price                Decimal            @db.Decimal(19, 4)
+  currency             String
+  billingFrequency     BillingFrequency
+  customIntervalDays   Int?
+  startDate            DateTime
+  nextRenewalDate      DateTime
+  endDate              DateTime?
+  accountId            String
+  paymentMethod        PaymentMethod?
+  categoryId           String?
+  status               SubscriptionStatus @default(ACTIVE)
+  autoRenew            Boolean            @default(true)
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+
+  user         User             @relation(fields: [userId], references: [id])
+  account      FinancialAccount @relation(fields: [accountId], references: [id])
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId, status, deletedAt])
+  @@index([userId, nextRenewalDate, deletedAt])
+  @@index([userId, currency, deletedAt])
+  @@index([accountId])
+  @@index([categoryId])
 }
 
 model Debt {
-  id              String         @id @default(cuid())
-  userId          String
-  accountId       String?
-  personName      String
-  direction       DebtDirection
-  originalAmount  Decimal        @db.Decimal(19, 4)
-  remainingAmount Decimal        @db.Decimal(19, 4)
-  currency        String
-  dueDate         DateTime?
-  status          DebtStatus     @default(OPEN)
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  deletedAt       DateTime?
+  id                 String             @id @default(cuid())
+  userId             String
+  accountId          String?
+  personName         String
+  direction          DebtDirection
+  originalAmount     Decimal            @db.Decimal(19, 4)
+  remainingAmount    Decimal            @db.Decimal(19, 4)
+  currency           String
+  exchangeRate       Decimal            @db.Decimal(24, 12)
+  baseAmountUsd      Decimal            @db.Decimal(19, 4)
+  exchangeRateAt     DateTime
+  exchangeRateSource ExchangeRateSource
+  dueDate            DateTime?
+  status             DebtStatus         @default(OPEN)
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
 
   user         User              @relation(fields: [userId], references: [id])
   account      FinancialAccount? @relation(fields: [accountId], references: [id])
@@ -176,16 +263,20 @@ model Debt {
 }
 
 model DebtPayment {
-  id            String    @id @default(cuid())
-  debtId        String
-  amount        Decimal   @db.Decimal(19, 4)
-  currency      String
-  paymentDate   DateTime
-  notes         String?
-  transactionId String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  id                 String             @id @default(cuid())
+  debtId             String
+  amount             Decimal            @db.Decimal(19, 4)
+  currency           String
+  exchangeRate       Decimal            @db.Decimal(24, 12)
+  baseAmountUsd      Decimal            @db.Decimal(19, 4)
+  exchangeRateAt     DateTime
+  exchangeRateSource ExchangeRateSource
+  paymentDate        DateTime
+  notes              String?
+  transactionId      String?            @unique
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
 
   debt Debt @relation(fields: [debtId], references: [id])
 

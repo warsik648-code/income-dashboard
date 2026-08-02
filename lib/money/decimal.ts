@@ -1,24 +1,38 @@
+import { Prisma } from "@/generated/prisma/client"
+
 /**
  * Decimal-safe money helpers.
  *
- * Rules (see Phase 2 architecture):
  * - Persist amounts as Prisma Decimal / PostgreSQL NUMERIC only.
  * - Transaction.amount is always positive; sign comes from TransactionType.
  * - Never use JavaScript number arithmetic for stored money values.
- * - Never sum across different currencies.
- *
- * Implementations land with domain services — stubs only for now.
+ * - Never sum original amounts across different currencies.
  */
 
 export type MoneyDecimalString = string
 
-export function assertPositiveAmount(_value: MoneyDecimalString): void {
-  throw new Error("lib/money: not implemented yet")
+export function assertPositiveAmount(value: MoneyDecimalString): void {
+  let decimal: Prisma.Decimal
+  try {
+    decimal = new Prisma.Decimal(value)
+  } catch {
+    throw new Error("Amount must be a valid decimal string")
+  }
+
+  if (!decimal.isFinite() || decimal.lte(0)) {
+    throw new Error("Amount must be a positive decimal")
+  }
+}
+
+export function toDecimal(value: MoneyDecimalString | Prisma.Decimal): Prisma.Decimal {
+  return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
 }
 
 export function signedAmountForType(
-  _amount: MoneyDecimalString,
-  _type: "INCOME" | "EXPENSE"
-): MoneyDecimalString {
-  throw new Error("lib/money: not implemented yet")
+  amount: MoneyDecimalString,
+  type: "INCOME" | "EXPENSE"
+): Prisma.Decimal {
+  assertPositiveAmount(amount)
+  const decimal = toDecimal(amount)
+  return type === "EXPENSE" ? decimal.neg() : decimal
 }

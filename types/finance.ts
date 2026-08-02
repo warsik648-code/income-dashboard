@@ -1,6 +1,6 @@
 /**
  * Shared finance domain types (non-Prisma).
- * Prefer generated Prisma enums once `pnpm exec prisma generate` has been run.
  */
 
-export type IsoCurrencyCode = string
+export type { BaseCurrency, SupportedCrypto, SupportedFiat } from "@/lib/money"
+export { BASE_CURRENCY } from "@/lib/money"
