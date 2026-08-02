@@ -42,3 +42,15 @@ export {
   type SubscriptionFilters,
   type UpdateSubscriptionInput,
 } from "./subscriptions"
+
+export {
+  createDebtSchema,
+  debtFiltersSchema,
+  debtIdSchema,
+  recordDebtPaymentSchema,
+  updateDebtSchema,
+  type CreateDebtInput,
+  type DebtFilters,
+  type RecordDebtPaymentInput,
+  type UpdateDebtInput,
+} from "./debts"

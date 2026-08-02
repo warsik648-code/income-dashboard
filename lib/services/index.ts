@@ -59,3 +59,16 @@ export {
   updateExpense,
   type ExpenseListItem,
 } from "./expenses"
+
+export {
+  DebtServiceError,
+  createDebt,
+  listDebts,
+  markDebtFullyPaid,
+  recordDebtPayment,
+  restoreDebt,
+  softDeleteDebt,
+  summarizeDebts,
+  updateDebt,
+  type DebtListItem,
+} from "./debts"
