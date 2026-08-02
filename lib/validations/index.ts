@@ -54,3 +54,10 @@ export {
   type RecordDebtPaymentInput,
   type UpdateDebtInput,
 } from "./debts"
+
+export {
+  analyticsFiltersSchema,
+  analyticsPresetSchema,
+  type AnalyticsFilters,
+  type AnalyticsPreset,
+} from "./analytics"

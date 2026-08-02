@@ -72,3 +72,9 @@ export {
   updateDebt,
   type DebtListItem,
 } from "./debts"
+
+export {
+  getAnalytics,
+  listAnalyticsCategories,
+  type AnalyticsResult,
+} from "./analytics"
