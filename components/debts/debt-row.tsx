@@ -7,6 +7,7 @@ import {
   softDeleteDebtAction,
   type DebtActionState,
 } from "@/app/(dashboard)/dashboard/debts/actions"
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
 import { EditDebtDialog } from "@/components/debts/edit-debt-dialog"
 import { RecordPaymentDialog } from "@/components/debts/record-payment-dialog"
 import type { DebtAccountOption } from "@/components/debts/debt-form-fields"
@@ -141,27 +142,41 @@ export function DebtRow({
         ) : null}
 
         {entry.payments.length > 0 ? (
-          <div className="space-y-1.5 rounded-lg border border-border/60 bg-background/30 p-3">
+          <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-3">
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
               Payment history
             </p>
-            <ul className="space-y-1.5">
+            <ul className="space-y-3">
               {entry.payments.map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-                >
-                  <span className="font-mono tabular-nums">
-                    {payment.amount} {payment.currency}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(payment.paymentDate)}
-                    {payment.transactionId ? " · linked txn" : ""}
-                  </span>
+                <li key={payment.id} className="space-y-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                    <span className="font-mono tabular-nums">
+                      {payment.amount} {payment.currency}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(payment.paymentDate)}
+                      {payment.transactionId ? " · linked txn" : ""}
+                    </span>
+                  </div>
+                  {!entry.deletedAt ? (
+                    <AttachmentsPanel
+                      entityType="DEBT_PAYMENT"
+                      entityId={payment.id}
+                      title="Payment files"
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
+        ) : null}
+
+        {!entry.deletedAt ? (
+          <AttachmentsPanel
+            entityType="DEBT"
+            entityId={entry.id}
+            title="Debt files"
+          />
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">

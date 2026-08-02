@@ -6,6 +6,7 @@ import {
   softDeleteIncomeAction,
   type IncomeActionState,
 } from "@/app/(dashboard)/dashboard/income/actions"
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
 import { EditIncomeDialog } from "@/components/income/edit-income-dialog"
 import type { IncomeAccountOption } from "@/components/income/income-form-fields"
 import { Badge } from "@/components/ui/badge"
@@ -88,6 +89,11 @@ export function IncomeRow({ accounts, entry }: IncomeRowProps) {
             {entry.notes}
           </p>
         ) : null}
+        <AttachmentsPanel
+          entityType="TRANSACTION"
+          entityId={entry.id}
+          title="Receipts & files"
+        />
         <div className="flex flex-wrap items-center gap-2">
           <EditIncomeDialog accounts={accounts} entry={entry} />
           <form

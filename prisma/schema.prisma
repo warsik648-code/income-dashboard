@@ -67,6 +67,7 @@ enum StorageProvider {
   LOCAL
   S3
   R2
+  SUPABASE
 }
 
 enum BillingFrequency {

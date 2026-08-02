@@ -7,6 +7,7 @@ import {
   softDeleteExpenseAction,
   type ExpenseActionState,
 } from "@/app/(dashboard)/dashboard/expenses/actions"
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
 import { EditExpenseDialog } from "@/components/expenses/edit-expense-dialog"
 import type {
   ExpenseAccountOption,
@@ -107,6 +108,14 @@ export function ExpenseRow({
           <p className="text-sm leading-relaxed text-muted-foreground">
             {entry.notes}
           </p>
+        ) : null}
+
+        {!entry.deletedAt ? (
+          <AttachmentsPanel
+            entityType="TRANSACTION"
+            entityId={entry.id}
+            title="Receipts & files"
+          />
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">

@@ -10,6 +10,7 @@ import {
   softDeleteSubscriptionAction,
   type SubscriptionActionState,
 } from "@/app/(dashboard)/dashboard/subscriptions/actions"
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
 import { ConfirmPaidDialog } from "@/components/subscriptions/confirm-paid-dialog"
 import { EditSubscriptionDialog } from "@/components/subscriptions/edit-subscription-dialog"
 import type {
@@ -168,6 +169,14 @@ export function SubscriptionRow({
           <p className="text-sm leading-relaxed text-muted-foreground">
             {entry.notes}
           </p>
+        ) : null}
+
+        {!entry.deletedAt ? (
+          <AttachmentsPanel
+            entityType="SUBSCRIPTION"
+            entityId={entry.id}
+            title="Subscription files"
+          />
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">

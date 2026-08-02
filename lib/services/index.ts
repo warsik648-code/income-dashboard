@@ -80,3 +80,12 @@ export {
 } from "./analytics"
 
 export { getDashboard, type DashboardResult } from "./dashboard"
+
+export {
+  AttachmentServiceError,
+  createSignedPreviewUrl,
+  listAttachments,
+  softDeleteAttachment,
+  uploadAttachment,
+  type AttachmentListItem,
+} from "./attachments"
