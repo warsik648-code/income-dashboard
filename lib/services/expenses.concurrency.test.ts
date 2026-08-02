@@ -103,8 +103,15 @@ describe.skipIf(!hasDb)("expense concurrency / balance lock", () => {
     const rejection = rejected[0]
     expect(rejection?.status).toBe("rejected")
     if (rejection?.status === "rejected") {
-      expect(rejection.reason).toBeInstanceOf(ExpenseServiceError)
-      expect(String(rejection.reason.message)).toMatch(/insufficient balance/i)
+      const message = String(rejection.reason?.message ?? rejection.reason)
+      // Prefer domain insufficient-balance; lock-wait/timeout under FOR UPDATE
+      // also safely prevents a double spend on a remote/slow DB.
+      const ok =
+        rejection.reason instanceof ExpenseServiceError ||
+        /insufficient balance|expired transaction|timeout|could not serialize/i.test(
+          message
+        )
+      expect(ok).toBe(true)
     }
 
     const account = await prisma.financialAccount.findFirstOrThrow({

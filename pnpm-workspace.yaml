@@ -3,12 +3,16 @@ packages:
   - "."
 
 allowBuilds:
-  '@prisma/engines': set this to true or false
-  argon2: set this to true or false
-  esbuild: set this to true or false
-  prisma: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  "@prisma/engines": true
+  argon2: true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
 
 overrides:
+  # Safe: lifts Next's nested postcss pin for advisory cleanup without changing Next APIs.
   postcss: ">=8.5.18"
+  # Do NOT override sharp here: next@16.2.12 pins ^0.34.5; forcing 0.35.x has
+  # reported Turbopack/runtime issues on 16.2.x. Wait for a stable Next release
+  # that declares sharp ^0.35.3 (already on next@canary only).

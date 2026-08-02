@@ -244,7 +244,7 @@ export async function createExpense(
     })
 
     return created
-  })
+  }, { timeout: 20_000 })
 }
 
 export async function updateExpense(

@@ -65,7 +65,36 @@ In-memory rate limit is fine for a single Node instance. For multiple instances,
 
 ## Dependency CVEs
 
-`pnpm audit` may still report transitive `sharp` / `postcss` issues bundled by Next.js. Track Next.js patch releases; avoid unrelated major upgrades. Re-run `pnpm audit` after each Next bump.
+### Remaining: sharp via Next.js (GHSA-f88m-g3jw-g9cj) — no safe stable fix yet
+
+| Item | Detail |
+|------|--------|
+| Advisory | [GHSA-f88m-g3jw-g9cj](https://github.com/advisories/GHSA-f88m-g3jw-g9cj) |
+| CVEs | CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 (libvips) |
+| Severity | High (audit) |
+| Affected | `sharp` **&lt; 0.35.0** |
+| Patched | `sharp` **≥ 0.35.0** (current patched release: 0.35.3) |
+| Chain | `income-dashboard` → `next@16.2.12` → optional `sharp@0.34.5` (also via `next-auth` → `next`) |
+| Installed | **sharp@0.34.5** (confirmed via `pnpm why sharp`) |
+| Next pin | `next@16.2.12` optionalDependency `sharp: ^0.34.5` |
+| Upstream status | Stable Next latest is still **16.2.12**. Only **`next@canary` (16.3.0-canary.x)** declares `sharp: ^0.35.3` |
+
+**Why we did not force a fix**
+
+1. No stable Next.js release yet ships patched sharp.
+2. Jumping to `next@canary` is not production-safe.
+3. Overriding `sharp` to 0.35.x under Next 16.2.x has reported Turbopack / platform runtime issues ([next.js#96064](https://github.com/vercel/next.js/issues/96064)). That is a breaking override for this stack — not applied.
+
+**Reachability in this app**
+
+- This app does **not** import `sharp` and does **not** use `next/image` (previews use plain `<img>` / sandboxed iframe + Supabase signed URLs).
+- Advisory impact is for processing **untrusted image input** through sharp/libvips.
+- Residual surface: Next’s optional image optimizer (`/_next/image`) if invoked. We do not configure remote image optimization hosts, and UI code does not call it.
+- Attachment uploads validate MIME/extension/magic bytes and store blobs in private Supabase Storage; they are **not** processed by sharp.
+
+**Follow-up**
+
+When a **stable** Next release pins `sharp >= 0.35.0`, upgrade `next` + `eslint-config-next` (exact), re-run `pnpm audit`, `pnpm test`, `pnpm build`. Re-run `pnpm audit` after each Next bump.
 
 ## Backups
 
