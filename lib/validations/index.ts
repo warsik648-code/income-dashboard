@@ -30,3 +30,15 @@ export {
   type ExpenseFilters,
   type UpdateExpenseInput,
 } from "./expenses"
+
+export {
+  confirmPaidSchema,
+  createSubscriptionSchema,
+  subscriptionFiltersSchema,
+  subscriptionIdSchema,
+  updateSubscriptionSchema,
+  type ConfirmPaidInput,
+  type CreateSubscriptionInput,
+  type SubscriptionFilters,
+  type UpdateSubscriptionInput,
+} from "./subscriptions"

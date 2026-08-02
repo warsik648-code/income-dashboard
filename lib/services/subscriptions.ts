@@ -1,39 +1,42 @@
-import type { ExchangeRateSource, PaymentMethod } from "@/generated/prisma/client"
+import {
+  Prisma,
+  type BillingFrequency,
+  type PaymentMethod,
+  type Subscription,
+  type SubscriptionStatus,
+} from "@/generated/prisma/client"
 
-import type { MoneyDecimalString } from "@/lib/money"
+import { prisma } from "@/lib/db"
+import {
+  advanceRenewalDate,
+  monthlyEquivalent,
+  renewalPeriodKey,
+} from "@/lib/money/billing"
+import {
+  getSubscriptionDisplayState,
+  isSubscriptionDue,
+} from "@/lib/money/subscription-due"
+import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
+import { writeAuditLog } from "@/lib/services/audit"
+import { recomputeCachedBalance } from "@/lib/services/balances"
+import { ensureExpenseCategories } from "@/lib/services/categories"
+import type {
+  ConfirmPaidInput,
+  CreateSubscriptionInput,
+  SubscriptionFilters,
+  UpdateSubscriptionInput,
+} from "@/lib/validations/subscriptions"
 
-/**
- * Confirm a subscription renewal payment.
- *
- * MUST NOT run automatically when nextRenewalDate arrives.
- * Only call this after the user confirms payment was completed.
- *
- * In one Prisma interactive transaction this will:
- * 1. Create an EXPENSE with original amount/currency + frozen FX snapshot
- * 2. Link it via subscriptionId
- * 3. Deduct from the selected financial account (native currency balance)
- * 4. Write AuditLog rows
- * 5. Advance nextRenewalDate by billingFrequency / customIntervalDays
- *
- * Cancelled subscriptions keep linked transaction history.
- */
-export type ConfirmRenewalPaymentInput = {
+export class SubscriptionServiceError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "SubscriptionServiceError"
+  }
+}
+
+export type ConfirmRenewalPaymentInput = ConfirmPaidInput & {
   userId: string
   subscriptionId: string
-  /** Defaults to subscription.accountId when omitted. */
-  accountId?: string
-  /** Override amount; defaults to subscription.price. */
-  amount?: MoneyDecimalString
-  /**
-   * USD per 1 unit of subscription currency.
-   * Required when currency is not USD; ignored (forced to 1) for USD.
-   */
-  exchangeRate?: MoneyDecimalString
-  exchangeRateAt?: Date
-  exchangeRateSource?: ExchangeRateSource
-  paymentMethod?: PaymentMethod
-  paymentDate?: Date
-  notes?: string
 }
 
 export type ConfirmRenewalPaymentResult = {
@@ -42,27 +45,555 @@ export type ConfirmRenewalPaymentResult = {
   nextRenewalDate: Date
 }
 
-/**
- * Implementation lands after the FX migration is applied.
- * Signature and contract are locked to the approved architecture.
- */
-export async function confirmRenewalPayment(
-  input: ConfirmRenewalPaymentInput
-): Promise<ConfirmRenewalPaymentResult> {
-  void input
-  throw new Error("confirmRenewalPayment: not implemented yet")
+export type SubscriptionListItem = Subscription & {
+  account: {
+    id: string
+    name: string
+    currency: string
+    cachedBalance: Prisma.Decimal
+  }
+  category: { id: string; name: string } | null
+  displayState: ReturnType<typeof getSubscriptionDisplayState>
+  isDue: boolean
+  monthlyEquivalent: string
 }
 
-/**
- * Cancel a subscription without deleting payment history.
- * Sets status=CANCELLED and optional endDate; linked transactions remain.
- */
+function emptyToNull(value?: string | null) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function parseDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new SubscriptionServiceError("Invalid date.")
+  }
+  return date
+}
+
+function parseOptionalDate(value?: string | null) {
+  if (!value?.trim()) return null
+  return parseDate(value)
+}
+
+function parseCustomDays(frequency: string, raw?: string | null) {
+  if (frequency !== "CUSTOM") return null
+  const days = Number(raw)
+  if (!Number.isInteger(days) || days <= 0) {
+    throw new SubscriptionServiceError(
+      "Custom interval days must be a positive whole number."
+    )
+  }
+  return days
+}
+
+async function getOwnedActiveAccount(
+  client: Prisma.TransactionClient | typeof prisma,
+  userId: string,
+  accountId: string
+) {
+  const account = await client.financialAccount.findFirst({
+    where: {
+      id: accountId,
+      userId,
+      deletedAt: null,
+      isArchived: false,
+    },
+  })
+  if (!account) {
+    throw new SubscriptionServiceError("Select an active payment account.")
+  }
+  return account
+}
+
+export async function listSubscriptions(
+  userId: string,
+  filters: SubscriptionFilters = {}
+): Promise<SubscriptionListItem[]> {
+  const includeDeleted = filters.deleted === "1"
+  const rows = await prisma.subscription.findMany({
+    where: {
+      userId,
+      deletedAt: includeDeleted ? { not: null } : null,
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.accountId ? { accountId: filters.accountId } : {}),
+      ...(filters.currency ? { currency: filters.currency } : {}),
+      ...(filters.billingFrequency
+        ? { billingFrequency: filters.billingFrequency }
+        : {}),
+    },
+    include: {
+      account: {
+        select: {
+          id: true,
+          name: true,
+          currency: true,
+          cachedBalance: true,
+        },
+      },
+      category: { select: { id: true, name: true } },
+    },
+    orderBy: [{ nextRenewalDate: "asc" }, { name: "asc" }],
+  })
+
+  return rows.map((row) => {
+    const dueInput = {
+      status: row.status,
+      nextRenewalDate: row.nextRenewalDate,
+      endDate: row.endDate,
+      deletedAt: row.deletedAt,
+    }
+    return {
+      ...row,
+      displayState: getSubscriptionDisplayState(dueInput),
+      isDue: isSubscriptionDue(dueInput),
+      monthlyEquivalent: monthlyEquivalent(
+        row.price,
+        row.billingFrequency,
+        row.customIntervalDays
+      ).toString(),
+    }
+  })
+}
+
+export function summarizeSubscriptions(items: SubscriptionListItem[]) {
+  const activeItems = items.filter(
+    (item) =>
+      !item.deletedAt &&
+      (item.status === "ACTIVE" || item.status === "TRIAL")
+  )
+  const due = activeItems.filter((item) => item.isDue)
+  const upcoming = activeItems
+    .filter((item) => !item.isDue)
+    .slice()
+    .sort(
+      (a, b) => a.nextRenewalDate.getTime() - b.nextRenewalDate.getTime()
+    )
+    .slice(0, 5)
+
+  const monthlyByCurrency = new Map<string, Prisma.Decimal>()
+  for (const item of activeItems) {
+    const current =
+      monthlyByCurrency.get(item.currency) ?? new Prisma.Decimal(0)
+    monthlyByCurrency.set(
+      item.currency,
+      current.plus(item.monthlyEquivalent)
+    )
+  }
+
+  return {
+    activeCount: activeItems.length,
+    dueCount: due.length,
+    due,
+    upcoming,
+    monthlyByCurrency: [...monthlyByCurrency.entries()]
+      .map(([currency, amount]) => ({
+        currency,
+        amount: amount.toDecimalPlaces(4).toString(),
+      }))
+      .sort((a, b) => a.currency.localeCompare(b.currency)),
+  }
+}
+
+export async function createSubscription(
+  userId: string,
+  input: CreateSubscriptionInput
+): Promise<Subscription> {
+  const account = await getOwnedActiveAccount(prisma, userId, input.accountId)
+  const currency = account.currency
+
+  if (input.categoryId) {
+    const category = await prisma.category.findFirst({
+      where: {
+        id: input.categoryId,
+        userId,
+        deletedAt: null,
+      },
+    })
+    if (!category) {
+      throw new SubscriptionServiceError("Select a valid category.")
+    }
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.subscription.create({
+      data: {
+        userId,
+        name: input.name.trim(),
+        provider: input.provider.trim(),
+        logoUrl: emptyToNull(input.logoUrl),
+        price: new Prisma.Decimal(input.price),
+        currency,
+        billingFrequency: input.billingFrequency as BillingFrequency,
+        customIntervalDays: parseCustomDays(
+          input.billingFrequency,
+          input.customIntervalDays
+        ),
+        startDate: parseDate(input.startDate),
+        nextRenewalDate: parseDate(input.nextRenewalDate),
+        endDate: parseOptionalDate(input.endDate),
+        accountId: account.id,
+        categoryId: emptyToNull(input.categoryId),
+        paymentMethod: emptyToNull(input.paymentMethod) as PaymentMethod | null,
+        status: (input.status ?? "ACTIVE") as SubscriptionStatus,
+        autoRenew: input.autoRenew ?? true,
+        notes: emptyToNull(input.notes),
+      },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: row.id,
+      action: "CREATE",
+      before: null,
+      after: row,
+      reason: "Subscription created",
+    })
+
+    return row
+  })
+
+  return created
+}
+
+export async function updateSubscription(
+  userId: string,
+  input: UpdateSubscriptionInput
+): Promise<Subscription> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.subscription.findFirst({
+      where: { id: input.id, userId, deletedAt: null },
+    })
+    if (!existing) {
+      throw new SubscriptionServiceError("Subscription not found.")
+    }
+
+    const account = await getOwnedActiveAccount(tx, userId, input.accountId)
+
+    const updated = await tx.subscription.update({
+      where: { id: existing.id },
+      data: {
+        name: input.name.trim(),
+        provider: input.provider.trim(),
+        logoUrl: emptyToNull(input.logoUrl),
+        price: new Prisma.Decimal(input.price),
+        currency: account.currency,
+        billingFrequency: input.billingFrequency as BillingFrequency,
+        customIntervalDays: parseCustomDays(
+          input.billingFrequency,
+          input.customIntervalDays
+        ),
+        startDate: parseDate(input.startDate),
+        nextRenewalDate: parseDate(input.nextRenewalDate),
+        endDate: parseOptionalDate(input.endDate),
+        accountId: account.id,
+        categoryId: emptyToNull(input.categoryId),
+        paymentMethod: emptyToNull(input.paymentMethod) as PaymentMethod | null,
+        status: input.status as SubscriptionStatus,
+        autoRenew: input.autoRenew ?? existing.autoRenew,
+        notes: emptyToNull(input.notes),
+      },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: updated.id,
+      action: "UPDATE",
+      before: existing,
+      after: updated,
+      reason: "Subscription updated",
+    })
+
+    return updated
+  })
+}
+
+async function setStatus(
+  userId: string,
+  id: string,
+  status: SubscriptionStatus,
+  reason: string,
+  extra?: { endDate?: Date | null }
+) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.subscription.findFirst({
+      where: { id, userId, deletedAt: null },
+    })
+    if (!existing) {
+      throw new SubscriptionServiceError("Subscription not found.")
+    }
+
+    const updated = await tx.subscription.update({
+      where: { id: existing.id },
+      data: {
+        status,
+        ...(extra?.endDate !== undefined ? { endDate: extra.endDate } : {}),
+      },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: updated.id,
+      action: "UPDATE",
+      before: existing,
+      after: updated,
+      reason,
+    })
+
+    return updated
+  })
+}
+
+export async function pauseSubscription(userId: string, id: string) {
+  return setStatus(userId, id, "PAUSED", "Subscription paused")
+}
+
+export async function resumeSubscription(userId: string, id: string) {
+  return setStatus(userId, id, "ACTIVE", "Subscription resumed")
+}
+
 export async function cancelSubscription(input: {
   userId: string
   subscriptionId: string
   endDate?: Date
   reason?: string
-}): Promise<void> {
-  void input
-  throw new Error("cancelSubscription: not implemented yet")
+}) {
+  return setStatus(
+    input.userId,
+    input.subscriptionId,
+    "CANCELLED",
+    input.reason ?? "Subscription cancelled",
+    { endDate: input.endDate ?? new Date() }
+  )
+}
+
+export async function softDeleteSubscription(userId: string, id: string) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.subscription.findFirst({
+      where: { id, userId, deletedAt: null },
+    })
+    if (!existing) {
+      throw new SubscriptionServiceError("Subscription not found.")
+    }
+
+    const deleted = await tx.subscription.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date() },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: deleted.id,
+      action: "SOFT_DELETE",
+      before: existing,
+      after: deleted,
+      reason: "Subscription soft-deleted",
+    })
+
+    return deleted
+  })
+}
+
+export async function restoreSubscription(userId: string, id: string) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.subscription.findFirst({
+      where: { id, userId, deletedAt: { not: null } },
+    })
+    if (!existing) {
+      throw new SubscriptionServiceError("Deleted subscription not found.")
+    }
+
+    const restored = await tx.subscription.update({
+      where: { id: existing.id },
+      data: { deletedAt: null },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: restored.id,
+      action: "RESTORE",
+      before: existing,
+      after: restored,
+      reason: "Subscription restored",
+    })
+
+    return restored
+  })
+}
+
+export async function confirmRenewalPayment(
+  input: ConfirmRenewalPaymentInput
+): Promise<ConfirmRenewalPaymentResult> {
+  const userId = input.userId
+  const subscriptionId = input.subscriptionId
+
+  return prisma.$transaction(async (tx) => {
+    const subscription = await tx.subscription.findFirst({
+      where: { id: subscriptionId, userId, deletedAt: null },
+    })
+    if (!subscription) {
+      throw new SubscriptionServiceError("Subscription not found.")
+    }
+    if (
+      subscription.status !== "ACTIVE" &&
+      subscription.status !== "TRIAL"
+    ) {
+      throw new SubscriptionServiceError(
+        "Only active or trial subscriptions can be confirmed as paid."
+      )
+    }
+
+    const accountId = input.accountId?.trim() || subscription.accountId
+    const account = await getOwnedActiveAccount(tx, userId, accountId)
+
+    if (account.currency !== subscription.currency) {
+      throw new SubscriptionServiceError(
+        "Payment account currency must match the subscription currency."
+      )
+    }
+
+    const periodKey = renewalPeriodKey(subscription.nextRenewalDate)
+    const duplicate = await tx.transaction.findFirst({
+      where: {
+        userId,
+        subscriptionId: subscription.id,
+        type: "EXPENSE",
+        deletedAt: null,
+        notes: { contains: `renewalPeriod:${periodKey}` },
+      },
+    })
+    if (duplicate) {
+      throw new SubscriptionServiceError(
+        `This renewal period (${periodKey}) was already confirmed.`
+      )
+    }
+
+    if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
+      throw new SubscriptionServiceError(
+        "Exchange rate (USD per 1 unit) is required for non-USD subscriptions."
+      )
+    }
+
+    const fx = buildFxSnapshot({
+      amount: subscription.price.toString() as MoneyDecimalString,
+      currency: subscription.currency,
+      exchangeRate: input.exchangeRate?.trim() || undefined,
+      exchangeRateSource:
+        account.currency === "USD"
+          ? "FIXED_USD"
+          : input.exchangeRate?.trim()
+            ? "USER_OVERRIDE"
+            : "MANUAL",
+    })
+
+    if (fx.amount.gt(account.cachedBalance) && !input.allowOverdraft) {
+      throw new SubscriptionServiceError(
+        `Insufficient balance. Available ${account.cachedBalance.toString()} ${account.currency}. Enable overdraft to continue.`
+      )
+    }
+
+    const categories = await ensureExpenseCategories(userId)
+    const subscriptionCategory =
+      categories.find((c) => c.name === "Subscription") ?? categories[0]
+    if (!subscriptionCategory) {
+      throw new SubscriptionServiceError("Expense categories are missing.")
+    }
+
+    const paymentDate = input.paymentDate?.trim()
+      ? parseDate(input.paymentDate)
+      : new Date()
+
+    const expense = await tx.transaction.create({
+      data: {
+        userId,
+        accountId: account.id,
+        categoryId: subscription.categoryId ?? subscriptionCategory.id,
+        subscriptionId: subscription.id,
+        type: "EXPENSE",
+        amount: fx.amount,
+        currency: fx.currency,
+        exchangeRate: fx.exchangeRate,
+        baseAmountUsd: fx.baseAmountUsd,
+        exchangeRateAt: fx.exchangeRateAt,
+        exchangeRateSource: fx.exchangeRateSource,
+        transactionDate: paymentDate,
+        description: `${subscription.name} renewal`,
+        counterparty: subscription.provider,
+        paymentMethod:
+          subscription.paymentMethod ??
+          ("OTHER" as PaymentMethod),
+        notes: `Subscription renewal; renewalPeriod:${periodKey}`,
+      },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Transaction",
+      entityId: expense.id,
+      action: "CREATE",
+      before: null,
+      after: expense,
+      reason: `Subscription renewal confirmed (${periodKey})`,
+    })
+
+    const nextRenewalDate = advanceRenewalDate(
+      subscription.nextRenewalDate,
+      subscription.billingFrequency,
+      subscription.customIntervalDays
+    )
+
+    const updatedSub = await tx.subscription.update({
+      where: { id: subscription.id },
+      data: { nextRenewalDate },
+    })
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "Subscription",
+      entityId: updatedSub.id,
+      action: "UPDATE",
+      before: subscription,
+      after: updatedSub,
+      reason: `Renewal confirmed; next date advanced from ${periodKey}`,
+    })
+
+    const updatedAccount = await recomputeCachedBalance(
+      tx,
+      account.id,
+      account.currency
+    )
+
+    await writeAuditLog(tx, {
+      userId,
+      entityType: "FinancialAccount",
+      entityId: account.id,
+      action: "UPDATE",
+      before: account,
+      after: updatedAccount,
+      reason: "Balance after subscription renewal",
+    })
+
+    return {
+      transactionId: expense.id,
+      subscriptionId: subscription.id,
+      nextRenewalDate,
+    }
+  })
+}
+
+/** @deprecated use confirmRenewalPayment with ConfirmPaidInput shape */
+export async function confirmPaid(
+  userId: string,
+  input: ConfirmPaidInput
+) {
+  return confirmRenewalPayment({
+    ...input,
+    userId,
+    subscriptionId: input.id,
+  })
 }

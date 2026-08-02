@@ -4,10 +4,21 @@
  */
 
 export {
+  SubscriptionServiceError,
   cancelSubscription,
+  confirmPaid,
   confirmRenewalPayment,
+  createSubscription,
+  listSubscriptions,
+  pauseSubscription,
+  restoreSubscription,
+  resumeSubscription,
+  softDeleteSubscription,
+  summarizeSubscriptions,
+  updateSubscription,
   type ConfirmRenewalPaymentInput,
   type ConfirmRenewalPaymentResult,
+  type SubscriptionListItem,
 } from "./subscriptions"
 
 export {
