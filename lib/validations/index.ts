@@ -19,3 +19,14 @@ export {
   type CreateIncomeInput,
   type UpdateIncomeInput,
 } from "./income"
+
+export {
+  createExpenseSchema,
+  expenseFiltersSchema,
+  restoreExpenseSchema,
+  softDeleteExpenseSchema,
+  updateExpenseSchema,
+  type CreateExpenseInput,
+  type ExpenseFilters,
+  type UpdateExpenseInput,
+} from "./expenses"

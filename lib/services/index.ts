@@ -33,3 +33,18 @@ export {
   updateIncome,
   type IncomeListItem,
 } from "./income"
+
+export {
+  EXPENSE_CATEGORY_NAMES,
+  ensureExpenseCategories,
+} from "./categories"
+
+export {
+  ExpenseServiceError,
+  createExpense,
+  listExpenses,
+  restoreExpense,
+  softDeleteExpense,
+  updateExpense,
+  type ExpenseListItem,
+} from "./expenses"
