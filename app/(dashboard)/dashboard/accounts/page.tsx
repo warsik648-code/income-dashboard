@@ -1,15 +1,24 @@
-import { Wallet } from "lucide-react"
+import { redirect } from "next/navigation"
 
-import { SectionPage } from "@/components/layout/section-page"
+import { AccountsView } from "@/components/accounts/accounts-view"
+import { auth } from "@/auth"
+import { listAccounts } from "@/lib/services/accounts"
 
-export default function AccountsPage() {
-  return (
-    <SectionPage
-      title="Accounts"
-      description="Balances for TRUST, Binance, Bank, Cash, and other wallets — each in its own currency."
-      icon={Wallet}
-      emptyTitle="No accounts configured"
-      emptyDescription="Account setup and balances will appear here after you create accounts. Multi-currency totals stay separated until converted to USD."
-    />
-  )
+type AccountsPageProps = {
+  searchParams: Promise<{ archived?: string }>
+}
+
+export default async function AccountsPage({ searchParams }: AccountsPageProps) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect("/login")
+  }
+
+  const params = await searchParams
+  const showArchived = params.archived === "1"
+  const accounts = await listAccounts(session.user.id, {
+    includeArchived: true,
+  })
+
+  return <AccountsView accounts={accounts} showArchived={showArchived} />
 }

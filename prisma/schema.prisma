@@ -123,6 +123,8 @@ model FinancialAccount {
   type          AccountType
   currency      String
   assetClass    AssetClass  @default(FIAT)
+  institution   String?
+  notes         String?
   /// Native units: fiat money or crypto quantity (never mixed-currency sum)
   cachedBalance Decimal     @default(0) @db.Decimal(19, 4)
   isArchived    Boolean     @default(false)
@@ -138,6 +140,7 @@ model FinancialAccount {
   @@unique([userId, type, name])
   @@index([userId, deletedAt])
   @@index([userId, assetClass, deletedAt])
+  @@index([userId, isArchived, deletedAt])
 }
 
 model Category {
