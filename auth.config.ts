@@ -15,6 +15,14 @@ export const authConfig = {
   },
   providers: [],
   callbacks: {
+    // Edge-safe: map JWT subject onto session.user.id for middleware checks.
+    // (Node auth.ts also sets this; middleware only loads this config.)
+    session({ session, token }) {
+      if (token.sub && session.user) {
+        session.user.id = token.sub
+      }
+      return session
+    },
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl
       const isLoggedIn = Boolean(auth?.user?.id)
