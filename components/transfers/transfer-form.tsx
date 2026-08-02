@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 import Decimal from "decimal.js"
 
@@ -16,6 +16,7 @@ import {
   suggestDestinationAmount,
 } from "@/lib/money/transfer-fx"
 import { previewBaseAmountUsd } from "@/lib/money/fx-preview"
+import { nextTransferIdempotencyKey } from "@/lib/transfers/idempotency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -79,12 +80,36 @@ export function TransferForm({
   const [rateError, setRateError] = useState<string | null>(null)
   const [loadingRates, setLoadingRates] = useState(false)
   const [destError, setDestError] = useState<string | null>(null)
-  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    crypto.randomUUID()
+  )
+  const wasPending = useRef(false)
 
   const [state, formAction, pending] = useActionState(
     createTransferAction,
     initialState
   )
+
+  // Rotate the idempotency key only after a confirmed success so retries keep
+  // the same key, while the next legitimate transfer gets a fresh one.
+  useEffect(() => {
+    if (!(wasPending.current && !pending)) {
+      wasPending.current = pending
+      return
+    }
+    wasPending.current = pending
+    if (!state.ok) return
+    const timer = window.setTimeout(() => {
+      setIdempotencyKey((current) =>
+        nextTransferIdempotencyKey({
+          outcome: "success",
+          currentKey: current,
+          generate: () => crypto.randomUUID(),
+        })
+      )
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [pending, state.ok])
 
   const from = useMemo(
     () => accounts.find((a) => a.id === fromAccountId),
@@ -353,7 +378,7 @@ export function TransferForm({
         name="feeUsdRate"
         value={rateFor(from?.currency ?? "USD", payload)}
       />
-      <input type="hidden" name="feeCurrency" value={from?.currency ?? "USD"} />
+      {/* Fee currency is derived server-side from the source account. */}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
@@ -696,8 +721,13 @@ export function TransferForm({
         </p>
       ) : null}
       {state.ok ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400">
-          Transfer saved.
+        <p
+          className="text-sm text-emerald-700 dark:text-emerald-400"
+          role="status"
+        >
+          {state.reused
+            ? "Already saved — this submission matched a previous request (no duplicate transfer created)."
+            : "Transfer saved."}
         </p>
       ) : null}
 

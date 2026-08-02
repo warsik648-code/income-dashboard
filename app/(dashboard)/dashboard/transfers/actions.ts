@@ -24,6 +24,8 @@ export type TransferActionState = {
   ok?: boolean
   error?: string
   transferId?: string
+  /** True when the idempotency key matched an existing transfer. */
+  reused?: boolean
 }
 
 function formFields(formData: FormData) {
@@ -75,9 +77,13 @@ export async function createTransferAction(
         error: parsed.error.issues[0]?.message ?? "Invalid transfer details",
       }
     }
-    const created = await createTransfer(userId, parsed.data)
+    const result = await createTransfer(userId, parsed.data)
     revalidateTransferPaths()
-    return { ok: true, transferId: created.id }
+    return {
+      ok: true,
+      transferId: result.transfer.id,
+      reused: result.reused,
+    }
   } catch (error) {
     if (error instanceof TransferServiceError) return { error: error.message }
     return { error: "Could not create transfer" }

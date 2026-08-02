@@ -94,4 +94,32 @@ describe("transfer balance model", () => {
     // Idempotency key returns existing row — out term still counted once.
     expect(once).not.toBe("0")
   })
+
+  it("PENDING → COMPLETED without fee must change balances (invariant)", () => {
+    const pending = balanceAfter({
+      income: "200",
+      expense: "0",
+      transferOut: "0",
+      transferIn: "0",
+    })
+    const completed = balanceAfter({
+      income: "200",
+      expense: "0",
+      transferOut: "50",
+      transferIn: "0",
+    })
+    expect(pending).toBe("200")
+    expect(completed).toBe("150")
+  })
+
+  it("separate fee appears exactly once in expense term", () => {
+    expect(
+      balanceAfter({
+        income: "200",
+        expense: "3",
+        transferOut: "100",
+        transferIn: "0",
+      })
+    ).toBe("97")
+  })
 })

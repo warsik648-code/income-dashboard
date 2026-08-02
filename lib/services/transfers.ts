@@ -23,6 +23,8 @@ import {
   recomputeCachedBalance,
 } from "@/lib/services/balances"
 import { TRANSFER_FEES_CATEGORY } from "@/lib/services/transfer-constants"
+import { resolveTransferFeeCurrency } from "@/lib/transfers/fee-currency"
+import { pendingTransferCompletionPlan } from "@/lib/transfers/pending-completion"
 import type {
   CreateTransferInput,
   TransferFilters,
@@ -202,18 +204,17 @@ function buildSnapshots(
   }
 
   const feePaidSeparately = Boolean(input.feePaidSeparately) && feeAmount.gt(0)
-  const feeCurrency = feePaidSeparately
-    ? assertSupportedCurrency(input.feeCurrency || sourceCurrency)
-    : feeAmount.gt(0)
-      ? assertSupportedCurrency(input.feeCurrency || sourceCurrency)
-      : null
+  // Always derive from source account — never trust client feeCurrency.
+  const feeCurrency = resolveTransferFeeCurrency({
+    sourceCurrency,
+    feeAmount: feeAmount.toString(),
+  })
 
   let feeBaseAmountUsd: Prisma.Decimal | null = null
   if (feeAmount.gt(0) && feeCurrency) {
     const feeRate = isUsd(feeCurrency)
       ? "1"
-      : input.feeUsdRate?.trim() ||
-        (feeCurrency === sourceCurrency ? sourceUsdRate : destinationUsdRate)
+      : input.feeUsdRate?.trim() || sourceUsdRate
     feeBaseAmountUsd = convertToBaseUsd(
       feeAmount,
       feeCurrency,
@@ -248,6 +249,12 @@ function buildSnapshots(
     feeBaseAmountUsd,
     feePaidSeparately,
   }
+}
+
+export type CreateTransferResult = {
+  transfer: Transfer
+  /** True when an existing transfer was returned for the same idempotency key. */
+  reused: boolean
 }
 
 async function upsertFeeExpense(
@@ -362,24 +369,24 @@ export async function listTransfers(
 export async function createTransfer(
   userId: string,
   input: CreateTransferInput
-): Promise<Transfer> {
+): Promise<CreateTransferResult> {
   const transferredAt = new Date(input.transferredAt)
   const status = input.status as TransferStatus
   const idempotencyKey = emptyToNull(input.idempotencyKey)
 
-  if (idempotencyKey) {
-    const existing = await prisma.transfer.findUnique({
-      where: {
-        userId_idempotencyKey: { userId, idempotencyKey },
-      },
-    })
-    if (existing && !existing.deletedAt) {
-      return existing
-    }
-  }
-
   return prisma.$transaction(
     async (tx) => {
+      if (idempotencyKey) {
+        const existing = await tx.transfer.findUnique({
+          where: {
+            userId_idempotencyKey: { userId, idempotencyKey },
+          },
+        })
+        if (existing && !existing.deletedAt) {
+          return { transfer: existing, reused: true }
+        }
+      }
+
       let locked
       try {
         locked = await lockAndRefreshAccounts(tx, userId, [
@@ -414,32 +421,51 @@ export async function createTransfer(
         }
       }
 
-      const created = await tx.transfer.create({
-        data: {
-          userId,
-          fromAccountId: from.id,
-          toAccountId: to.id,
-          sourceAmount: parts.sourceAmount,
-          sourceCurrency: parts.sourceCurrency,
-          destinationAmount: parts.destinationAmount,
-          destinationCurrency: parts.destinationCurrency,
-          suggestedExchangeRate: parts.suggestedExchangeRate,
-          effectiveExchangeRate: parts.effectiveExchangeRate,
-          suggestedDestinationAmount: parts.suggestedDestinationAmount,
-          sourceBaseAmountUsd: parts.sourceBaseAmountUsd,
-          destinationBaseAmountUsd: parts.destinationBaseAmountUsd,
-          feeAmount: parts.feeAmount,
-          feeCurrency: parts.feeCurrency,
-          feeBaseAmountUsd: parts.feeBaseAmountUsd,
-          feePaidSeparately: parts.feePaidSeparately,
-          status,
-          transferredAt,
-          reference: emptyToNull(input.reference),
-          notes: emptyToNull(input.notes),
-          idempotencyKey,
-          completedAt: status === "COMPLETED" ? new Date() : null,
-        },
-      })
+      let created: Transfer
+      try {
+        created = await tx.transfer.create({
+          data: {
+            userId,
+            fromAccountId: from.id,
+            toAccountId: to.id,
+            sourceAmount: parts.sourceAmount,
+            sourceCurrency: parts.sourceCurrency,
+            destinationAmount: parts.destinationAmount,
+            destinationCurrency: parts.destinationCurrency,
+            suggestedExchangeRate: parts.suggestedExchangeRate,
+            effectiveExchangeRate: parts.effectiveExchangeRate,
+            suggestedDestinationAmount: parts.suggestedDestinationAmount,
+            sourceBaseAmountUsd: parts.sourceBaseAmountUsd,
+            destinationBaseAmountUsd: parts.destinationBaseAmountUsd,
+            feeAmount: parts.feeAmount,
+            feeCurrency: parts.feeCurrency,
+            feeBaseAmountUsd: parts.feeBaseAmountUsd,
+            feePaidSeparately: parts.feePaidSeparately,
+            status,
+            transferredAt,
+            reference: emptyToNull(input.reference),
+            notes: emptyToNull(input.notes),
+            idempotencyKey,
+            completedAt: status === "COMPLETED" ? new Date() : null,
+          },
+        })
+      } catch (error) {
+        if (
+          idempotencyKey &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const existing = await tx.transfer.findUnique({
+            where: {
+              userId_idempotencyKey: { userId, idempotencyKey },
+            },
+          })
+          if (existing && !existing.deletedAt) {
+            return { transfer: existing, reused: true }
+          }
+        }
+        throw error
+      }
 
       if (status === "COMPLETED" && parts.feePaidSeparately) {
         await upsertFeeExpense(
@@ -467,7 +493,7 @@ export async function createTransfer(
         reason: `Transfer ${status.toLowerCase()}`,
       })
 
-      return created
+      return { transfer: created, reused: false }
     },
     { timeout: 20_000 }
   )
@@ -477,7 +503,8 @@ export async function updatePendingTransfer(
   userId: string,
   input: UpdatePendingTransferInput
 ): Promise<Transfer> {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     const existing = await tx.transfer.findFirst({
       where: { id: input.id, userId, deletedAt: null },
     })
@@ -518,8 +545,14 @@ export async function updatePendingTransfer(
       }
     }
 
-    const updated = await tx.transfer.update({
-      where: { id: existing.id },
+    const plan = pendingTransferCompletionPlan({
+      status,
+      feePaidSeparately: parts.feePaidSeparately,
+    })
+
+    // Conditional update prevents a concurrent second completion from applying twice.
+    const touched = await tx.transfer.updateMany({
+      where: { id: existing.id, userId, status: "PENDING", deletedAt: null },
       data: {
         fromAccountId: from.id,
         toAccountId: to.id,
@@ -543,8 +576,17 @@ export async function updatePendingTransfer(
         completedAt: status === "COMPLETED" ? new Date() : null,
       },
     })
+    if (touched.count !== 1) {
+      throw new TransferServiceError(
+        "Transfer is no longer pending and cannot be completed again."
+      )
+    }
 
-    if (status === "COMPLETED" && parts.feePaidSeparately) {
+    const updated = await tx.transfer.findFirstOrThrow({
+      where: { id: existing.id, userId },
+    })
+
+    if (plan.upsertSeparateFee) {
       await upsertFeeExpense(
         tx,
         userId,
@@ -553,10 +595,13 @@ export async function updatePendingTransfer(
         parts,
         transferredAt
       )
+    } else if (plan.softDeleteFeeExpenses) {
+      await softDeleteFeeExpenses(tx, updated.id)
+    }
+
+    if (plan.recomputeBalances) {
       await recomputeCachedBalance(tx, from.id, from.currency)
       await recomputeCachedBalance(tx, to.id, to.currency)
-    } else {
-      await softDeleteFeeExpenses(tx, updated.id)
     }
 
     await writeAuditLog(tx, {
@@ -566,11 +611,16 @@ export async function updatePendingTransfer(
       action: "UPDATE",
       before: existing,
       after: updated,
-      reason: "Pending transfer updated",
+      reason:
+        status === "COMPLETED"
+          ? "Pending transfer completed — balances recomputed"
+          : "Pending transfer updated",
     })
 
     return updated
-  })
+    },
+    { timeout: 20_000 }
+  )
 }
 
 export async function updateTransferMeta(
@@ -610,7 +660,8 @@ export async function reverseTransfer(
   userId: string,
   transferId: string
 ): Promise<Transfer> {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     const existing = await tx.transfer.findFirst({
       where: { id: transferId, userId, deletedAt: null },
     })
@@ -655,7 +706,9 @@ export async function reverseTransfer(
     })
 
     return updated
-  })
+    },
+    { timeout: 20_000 }
+  )
 }
 
 export async function cancelPendingTransfer(
