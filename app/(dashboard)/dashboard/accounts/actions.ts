@@ -37,6 +37,7 @@ export async function createAccountAction(
       notes: formData.get("notes") ?? "",
       startingBalance: formData.get("startingBalance") ?? "",
       exchangeRate: formData.get("exchangeRate") ?? "",
+      exchangeRateSource: formData.get("exchangeRateSource") ?? "",
     })
 
     if (!parsed.success) {

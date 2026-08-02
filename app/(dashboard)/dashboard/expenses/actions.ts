@@ -29,6 +29,7 @@ function formFields(formData: FormData) {
     categoryId: formData.get("categoryId"),
     amount: formData.get("amount"),
     exchangeRate: formData.get("exchangeRate") ?? "",
+    exchangeRateSource: formData.get("exchangeRateSource") ?? "",
     transactionDate: formData.get("transactionDate"),
     description: formData.get("description"),
     counterparty: formData.get("counterparty"),

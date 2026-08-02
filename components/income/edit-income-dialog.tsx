@@ -72,6 +72,7 @@ export function EditIncomeDialog({ accounts, entry }: EditIncomeDialogProps) {
           <IncomeFormFields
             accounts={accounts}
             disabled={pending}
+            editingExisting
             defaults={{
               accountId: entry.accountId,
               amount: entry.amount.toString(),

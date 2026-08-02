@@ -196,6 +196,7 @@ export async function confirmPaidAction(
       id: formData.get("id"),
       accountId: formData.get("accountId") ?? "",
       exchangeRate: formData.get("exchangeRate") ?? "",
+      exchangeRateSource: formData.get("exchangeRateSource") ?? "",
       allowOverdraft: formData.get("allowOverdraft") ?? "",
       paymentDate: formData.get("paymentDate") ?? "",
     })

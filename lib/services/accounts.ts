@@ -7,11 +7,12 @@ import {
 
 import { prisma } from "@/lib/db"
 import {
+  assertSupportedCurrency,
   assertTransactionCurrencyMatchesAccount,
   buildFxSnapshot,
-  normalizeCurrencyCode,
   type MoneyDecimalString,
 } from "@/lib/money"
+import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import { recomputeCachedBalance } from "@/lib/services/balances"
 import type {
@@ -56,7 +57,7 @@ export async function createAccount(
   userId: string,
   input: CreateAccountInput
 ): Promise<FinancialAccount> {
-  const currency = normalizeCurrencyCode(input.currency)
+  const currency = assertSupportedCurrency(input.currency)
   const name = input.name.trim()
   const startingBalance = input.startingBalance?.trim()
 
@@ -106,12 +107,11 @@ export async function createAccount(
         amount: startingBalance as MoneyDecimalString,
         currency,
         exchangeRate: input.exchangeRate?.trim() || undefined,
-        exchangeRateSource:
-          currency === "USD"
-            ? "FIXED_USD"
-            : input.exchangeRate?.trim()
-              ? "USER_OVERRIDE"
-              : "MANUAL",
+        exchangeRateSource: resolveExchangeRateSource({
+          currency,
+          exchangeRate: input.exchangeRate,
+          exchangeRateSource: input.exchangeRateSource,
+        }),
       })
 
       const openingTx = await tx.transaction.create({

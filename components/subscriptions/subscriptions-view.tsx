@@ -53,7 +53,6 @@ export function SubscriptionsView({
   summary,
   filters,
 }: SubscriptionsViewProps) {
-  const currencies = [...new Set(accounts.map((a) => a.currency))].sort()
   const showDeleted = filters.deleted === "1"
 
   return (
@@ -71,11 +70,7 @@ export function SubscriptionsView({
 
       {!showDeleted ? <SubscriptionSummary {...summary} /> : null}
 
-      <SubscriptionFilters
-        accounts={accounts}
-        currencies={currencies}
-        values={filters}
-      />
+      <SubscriptionFilters accounts={accounts} values={filters} />
 
       {entries.length === 0 ? (
         <EmptyState

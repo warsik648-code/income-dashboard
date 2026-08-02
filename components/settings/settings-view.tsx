@@ -16,7 +16,8 @@ import {
   DATE_FORMATS,
   NUMBER_FORMATS,
 } from "@/lib/validations/settings"
-import { SUPPORTED_CRYPTO, SUPPORTED_FIAT } from "@/lib/money/currency"
+import { EXCHANGE_RATE_ATTRIBUTION } from "@/lib/exchange-rates/types"
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +33,6 @@ import { Label } from "@/components/ui/label"
 import type { CategoryManageItem, SettingsProfile } from "@/lib/services/settings"
 
 const initialState: SettingsActionState = {}
-const CURRENCIES = [...SUPPORTED_FIAT, ...SUPPORTED_CRYPTO]
 
 type AccountOption = {
   id: string
@@ -188,16 +188,28 @@ export function SettingsView({
       </div>
 
       <Card className="border-border/70 bg-card/70 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base tracking-tight">Preferences</CardTitle>
-          <CardDescription>
-            Display and default account preferences
-          </CardDescription>
-        </CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base tracking-tight">Preferences</CardTitle>
+            <CardDescription>
+              Display and default account preferences. Live FX suggestions use
+              USD as the reporting base (
+              <a
+                href={EXCHANGE_RATE_ATTRIBUTION.href}
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                {EXCHANGE_RATE_ATTRIBUTION.label}
+              </a>
+              ).
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <form action={prefAction} className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="preferredCurrency">Base display currency</Label>
+              <Label htmlFor="preferredCurrency">
+                Preferred currency (reporting base is USD)
+              </Label>
               <select
                 id="preferredCurrency"
                 name="preferredCurrency"
@@ -205,7 +217,7 @@ export function SettingsView({
                 disabled={prefPending}
                 className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
               >
-                {CURRENCIES.map((code) => (
+                {SUPPORTED_CURRENCIES.map((code) => (
                   <option key={code} value={code}>
                     {code}
                   </option>

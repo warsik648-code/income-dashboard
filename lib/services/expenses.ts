@@ -5,7 +5,12 @@ import {
 } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
-import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
+import {
+  buildFxSnapshot,
+  isSameFrozenFx,
+  type MoneyDecimalString,
+} from "@/lib/money"
+import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import {
   BalanceServiceError,
@@ -106,11 +111,12 @@ async function assertSufficientBalance(
 function buildExpenseFx(
   amount: string,
   currency: string,
-  exchangeRate?: string
+  exchangeRate?: string,
+  exchangeRateSource?: string | null
 ) {
   if (currency !== "USD" && !exchangeRate?.trim()) {
     throw new ExpenseServiceError(
-      "Exchange rate (USD per 1 unit) is required for non-USD accounts."
+      "Exchange rate (currency units per 1 USD) is required for non-USD accounts."
     )
   }
 
@@ -118,12 +124,11 @@ function buildExpenseFx(
     amount: amount as MoneyDecimalString,
     currency,
     exchangeRate: exchangeRate?.trim() || undefined,
-    exchangeRateSource:
-      currency === "USD"
-        ? "FIXED_USD"
-        : exchangeRate?.trim()
-          ? "USER_OVERRIDE"
-          : "MANUAL",
+    exchangeRateSource: resolveExchangeRateSource({
+      currency,
+      exchangeRate,
+      exchangeRateSource,
+    }),
   })
 }
 
@@ -188,7 +193,8 @@ export async function createExpense(
     const fx = buildExpenseFx(
       input.amount,
       account.currency,
-      input.exchangeRate
+      input.exchangeRate,
+      input.exchangeRateSource
     )
 
     await assertSufficientBalance(tx, account, fx.amount, {
@@ -287,12 +293,19 @@ export async function updateExpense(
       throw new ExpenseServiceError("Select an active account.")
     }
 
-    const fx = buildExpenseFx(input.amount, account.currency, input.exchangeRate)
+    const fx = buildExpenseFx(
+      input.amount,
+      account.currency,
+      input.exchangeRate,
+      input.exchangeRateSource
+    )
 
     await assertSufficientBalance(tx, account, fx.amount, {
       allowOverdraft: input.allowOverdraft,
       ignoreExpenseId: existing.id,
     })
+
+    const preserveFx = isSameFrozenFx(existing, fx)
 
     const updated = await tx.transaction.update({
       where: { id: existing.id },
@@ -301,10 +314,12 @@ export async function updateExpense(
         categoryId: input.categoryId,
         amount: fx.amount,
         currency: fx.currency,
-        exchangeRate: fx.exchangeRate,
-        baseAmountUsd: fx.baseAmountUsd,
-        exchangeRateAt: fx.exchangeRateAt,
-        exchangeRateSource: fx.exchangeRateSource,
+        exchangeRate: preserveFx ? existing.exchangeRate : fx.exchangeRate,
+        baseAmountUsd: preserveFx ? existing.baseAmountUsd : fx.baseAmountUsd,
+        exchangeRateAt: preserveFx ? existing.exchangeRateAt : fx.exchangeRateAt,
+        exchangeRateSource: preserveFx
+          ? existing.exchangeRateSource
+          : fx.exchangeRateSource,
         transactionDate: new Date(input.transactionDate),
         description: input.description.trim(),
         counterparty: input.counterparty.trim(),

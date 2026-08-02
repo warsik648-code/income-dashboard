@@ -8,6 +8,7 @@ import {
   type DebtActionState,
 } from "@/app/(dashboard)/dashboard/debts/actions"
 import type { DebtAccountOption } from "@/components/debts/debt-form-fields"
+import { ExchangeRateField } from "@/components/money/exchange-rate-field"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -58,7 +59,9 @@ export function RecordPaymentDialog({
     mode === "full" ? markDebtFullyPaidAction : recordDebtPaymentAction
   const [state, formAction, pending] = useActionState(action, initialState)
   const wasPending = useRef(false)
-  const needsRate = debt.currency !== "USD"
+  const [paymentAmount, setPaymentAmount] = useState(
+    mode === "full" ? debt.remainingAmount : ""
+  )
   const selected = useMemo(
     () => matchingAccounts.find((a) => a.id === accountId),
     [matchingAccounts, accountId]
@@ -113,6 +116,8 @@ export function RecordPaymentDialog({
                 inputMode="decimal"
                 required
                 disabled={pending}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
                 placeholder={`Max ${debt.remainingAmount}`}
               />
             </div>
@@ -120,19 +125,16 @@ export function RecordPaymentDialog({
             <input type="hidden" name="amount" value="" />
           )}
 
-          <div className="grid gap-1.5">
-            <Label htmlFor={`payment-rate-${debt.id}`}>
-              FX rate {needsRate ? "(required)" : "(USD = 1)"}
-            </Label>
-            <Input
-              id={`payment-rate-${debt.id}`}
-              name="exchangeRate"
-              inputMode="decimal"
-              disabled={pending || !needsRate}
-              defaultValue={needsRate ? debt.exchangeRate : ""}
-              placeholder={needsRate ? "USD per 1 unit" : "1"}
-            />
-          </div>
+          <ExchangeRateField
+            idPrefix={`payment-${debt.id}-`}
+            currency={debt.currency}
+            amount={
+              mode === "full" ? debt.remainingAmount : paymentAmount
+            }
+            disabled={pending}
+            editingExisting
+            savedExchangeRate={debt.exchangeRate}
+          />
 
           <div className="grid gap-1.5">
             <Label htmlFor={`payment-date-${debt.id}`}>Payment date</Label>

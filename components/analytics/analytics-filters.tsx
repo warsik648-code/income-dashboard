@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,13 +20,11 @@ type Option = { id: string; name: string }
 
 export function AnalyticsFilters({
   accounts,
-  currencies,
   incomeCategories,
   expenseCategories,
   values,
 }: {
   accounts: Option[]
-  currencies: string[]
   incomeCategories: Option[]
   expenseCategories: Option[]
   values: {
@@ -113,7 +112,7 @@ export function AnalyticsFilters({
           className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
         >
           <option value="">All</option>
-          {currencies.map((currency) => (
+          {SUPPORTED_CURRENCIES.map((currency) => (
             <option key={currency} value={currency}>
               {currency}
             </option>

@@ -48,17 +48,12 @@ export default async function AnalyticsPage({
     getAnalytics(session.user.id, filters),
   ])
 
-  const currencies = [
-    ...new Set(accounts.map((account) => account.currency)),
-  ].sort()
-
   return (
     <AnalyticsView
       accounts={accounts.map((account) => ({
         id: account.id,
         name: account.name,
       }))}
-      currencies={currencies}
       incomeCategories={categories.income}
       expenseCategories={categories.expense}
       filters={{

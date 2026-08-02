@@ -17,6 +17,7 @@ import {
   isSubscriptionDue,
 } from "@/lib/money/subscription-due"
 import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
+import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import {
   BalanceServiceError,
@@ -507,7 +508,7 @@ export async function confirmRenewalPayment(
 
     if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
       throw new SubscriptionServiceError(
-        "Exchange rate (USD per 1 unit) is required for non-USD subscriptions."
+        "Exchange rate (currency units per 1 USD) is required for non-USD subscriptions."
       )
     }
 
@@ -515,12 +516,11 @@ export async function confirmRenewalPayment(
       amount: subscription.price.toString() as MoneyDecimalString,
       currency: subscription.currency,
       exchangeRate: input.exchangeRate?.trim() || undefined,
-      exchangeRateSource:
-        account.currency === "USD"
-          ? "FIXED_USD"
-          : input.exchangeRate?.trim()
-            ? "USER_OVERRIDE"
-            : "MANUAL",
+      exchangeRateSource: resolveExchangeRateSource({
+        currency: account.currency,
+        exchangeRate: input.exchangeRate,
+        exchangeRateSource: input.exchangeRateSource,
+      }),
     })
 
     if (fx.amount.gt(account.cachedBalance) && !input.allowOverdraft) {

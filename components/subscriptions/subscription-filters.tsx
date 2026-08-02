@@ -1,4 +1,5 @@
 import type { SubscriptionAccountOption } from "@/components/subscriptions/subscription-form-fields"
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
@@ -20,7 +21,6 @@ const FREQUENCIES = [
 
 type SubscriptionFiltersProps = {
   accounts: SubscriptionAccountOption[]
-  currencies: string[]
   values: {
     status?: string
     accountId?: string
@@ -32,7 +32,6 @@ type SubscriptionFiltersProps = {
 
 export function SubscriptionFilters({
   accounts,
-  currencies,
   values,
 }: SubscriptionFiltersProps) {
   return (
@@ -83,7 +82,7 @@ export function SubscriptionFilters({
           className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
         >
           <option value="">All</option>
-          {currencies.map((currency) => (
+          {SUPPORTED_CURRENCIES.map((currency) => (
             <option key={currency} value={currency}>
               {currency}
             </option>

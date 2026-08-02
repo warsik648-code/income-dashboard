@@ -32,7 +32,6 @@ export function ExpensesView({
   entries,
   filters,
 }: ExpensesViewProps) {
-  const currencies = [...new Set(accounts.map((a) => a.currency))].sort()
   const showDeleted = filters.deleted === "1"
 
   return (
@@ -48,7 +47,6 @@ export function ExpensesView({
       <ExpenseFilters
         accounts={accounts}
         categories={categories}
-        currencies={currencies}
         values={filters}
       />
 

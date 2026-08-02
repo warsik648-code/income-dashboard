@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
+
 export const analyticsPresetSchema = z.enum([
   "today",
   "this_week",
@@ -15,12 +17,7 @@ export const analyticsFiltersSchema = z
     from: z.string().trim().optional().or(z.literal("")),
     to: z.string().trim().optional().or(z.literal("")),
     accountId: z.string().trim().optional().or(z.literal("")),
-    currency: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .optional()
-      .or(z.literal("")),
+    currency: optionalCurrencyFilterSchema,
     incomeCategoryId: z.string().trim().optional().or(z.literal("")),
     expenseCategoryId: z.string().trim().optional().or(z.literal("")),
   })

@@ -60,6 +60,7 @@ export function EditDebtDialog({
             defaults={debt}
             disabled={pending}
             showStatus
+            editingExisting
           />
           {state.error ? (
             <p className="text-sm text-destructive" role="alert">

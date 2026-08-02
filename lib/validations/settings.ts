@@ -1,8 +1,6 @@
 import { z } from "zod"
 
-import { SUPPORTED_CRYPTO, SUPPORTED_FIAT } from "@/lib/money/currency"
-
-const currencyCodes = [...SUPPORTED_FIAT, ...SUPPORTED_CRYPTO] as [string, ...string[]]
+import { supportedCurrencySchema } from "@/lib/validations/currency"
 
 export const DATE_FORMATS = [
   "YYYY-MM-DD",
@@ -26,7 +24,7 @@ export const COMMON_TIMEZONES = [
 ] as const
 
 export const updatePreferencesSchema = z.object({
-  preferredCurrency: z.enum(currencyCodes),
+  preferredCurrency: supportedCurrencySchema,
   timezone: z.string().trim().min(1).max(64),
   dateFormat: z.enum(DATE_FORMATS),
   numberFormat: z.enum(NUMBER_FORMATS),

@@ -89,7 +89,7 @@ function toMoney(value: Prisma.Decimal) {
   return value.toDecimalPlaces(4).toString()
 }
 
-/** Latest known USD-per-unit rate per currency from non-deleted transactions. */
+/** Latest known units-per-USD rate per currency from non-deleted transactions. */
 async function latestExchangeRatesByCurrency(userId: string) {
   const rows = await prisma.transaction.findMany({
     where: { userId, deletedAt: null },
@@ -152,7 +152,7 @@ export async function getDashboard(userId: string): Promise<DashboardResult> {
         ? new Prisma.Decimal(1)
         : (rates.get(account.currency) ?? null)
     const balanceUsd = rate
-      ? account.cachedBalance.mul(rate).toDecimalPlaces(4)
+      ? account.cachedBalance.div(rate).toDecimalPlaces(4)
       : null
     return {
       id: account.id,

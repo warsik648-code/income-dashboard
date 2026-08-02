@@ -41,7 +41,7 @@ export function DashboardAccounts({
         <EmptyState
           icon={Wallet}
           title="No accounts yet"
-          description="Create a bank, cash, or crypto wallet to start tracking balances."
+          description="Create a bank, cash, or wallet account in USD, PKR, or TRY."
         />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
 const paymentMethod = z.enum([
@@ -12,12 +13,17 @@ const paymentMethod = z.enum([
   "OTHER",
 ])
 
+const exchangeRateSource = z
+  .enum(["MANUAL", "USER_OVERRIDE", "PROVIDER", "FIXED_USD", ""])
+  .optional()
+
 const baseExpenseSchema = z
   .object({
     accountId: z.string().min(1, "Account is required"),
     categoryId: z.string().min(1, "Category is required"),
     amount: positiveDecimalString,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
+    exchangeRateSource,
     transactionDate: z.string().min(1, "Date and time are required"),
     description: z.string().trim().min(1, "Description is required").max(200),
     counterparty: z
@@ -70,7 +76,7 @@ export const expenseFiltersSchema = z.object({
       "OTHER",
     ])
     .optional(),
-  currency: z.string().trim().toUpperCase().optional(),
+  currency: optionalCurrencyFilterSchema,
   from: z.string().optional(),
   to: z.string().optional(),
   deleted: z.enum(["1"]).optional(),

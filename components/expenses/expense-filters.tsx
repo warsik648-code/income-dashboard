@@ -2,6 +2,7 @@ import type {
   ExpenseAccountOption,
   ExpenseCategoryOption,
 } from "@/components/expenses/expense-form-fields"
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,7 +20,6 @@ const PAYMENT_METHODS = [
 type ExpenseFiltersProps = {
   accounts: ExpenseAccountOption[]
   categories: ExpenseCategoryOption[]
-  currencies: string[]
   values: {
     accountId?: string
     categoryId?: string
@@ -34,7 +34,6 @@ type ExpenseFiltersProps = {
 export function ExpenseFilters({
   accounts,
   categories,
-  currencies,
   values,
 }: ExpenseFiltersProps) {
   return (
@@ -102,7 +101,7 @@ export function ExpenseFilters({
           className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
         >
           <option value="">All</option>
-          {currencies.map((currency) => (
+          {SUPPORTED_CURRENCIES.map((currency) => (
             <option key={currency} value={currency}>
               {currency}
             </option>

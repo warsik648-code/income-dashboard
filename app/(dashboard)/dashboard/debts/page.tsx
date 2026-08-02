@@ -68,12 +68,6 @@ export default async function DebtsPage({ searchParams }: DebtsPageProps) {
   ])
 
   const summary = summarizeDebts(filters.deleted === "1" ? [] : entries)
-  const currencies = [
-    ...new Set([
-      ...accounts.map((a) => a.currency),
-      ...entries.map((e) => e.currency),
-    ]),
-  ].sort()
 
   return (
     <DebtsView
@@ -86,7 +80,6 @@ export default async function DebtsPage({ searchParams }: DebtsPageProps) {
       entries={entries.map(serializeDebt)}
       summary={summary}
       filters={filters}
-      currencies={currencies}
     />
   )
 }

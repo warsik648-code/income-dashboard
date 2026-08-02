@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 
-import { SUPPORTED_CRYPTO, SUPPORTED_FIAT } from "@/lib/money/currency"
+import { ExchangeRateField } from "@/components/money/exchange-rate-field"
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -13,8 +14,6 @@ export type DebtAccountOption = {
   currency: string
   cachedBalance: string
 }
-
-const CURRENCIES = [...SUPPORTED_FIAT, ...SUPPORTED_CRYPTO]
 
 function toDateInputValue(value?: string | Date | null) {
   if (!value) return ""
@@ -41,14 +40,16 @@ export function DebtFormFields({
   defaults,
   disabled,
   showStatus,
+  editingExisting = false,
 }: {
   accounts: DebtAccountOption[]
   defaults?: DebtFormDefaults
   disabled?: boolean
   showStatus?: boolean
+  editingExisting?: boolean
 }) {
   const [currency, setCurrency] = useState(defaults?.currency ?? "USD")
-  const needsRate = currency !== "USD"
+  const [amount, setAmount] = useState(defaults?.originalAmount ?? "")
   const matchingAccounts = accounts.filter((a) => a.currency === currency)
 
   return (
@@ -89,7 +90,8 @@ export function DebtFormFields({
             inputMode="decimal"
             required
             disabled={disabled}
-            defaultValue={defaults?.originalAmount}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
           />
         </div>
         <div className="grid gap-1.5">
@@ -103,7 +105,7 @@ export function DebtFormFields({
             onChange={(e) => setCurrency(e.target.value)}
             className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           >
-            {CURRENCIES.map((code) => (
+            {SUPPORTED_CURRENCIES.map((code) => (
               <option key={code} value={code}>
                 {code}
               </option>
@@ -112,19 +114,13 @@ export function DebtFormFields({
         </div>
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="exchangeRate">
-          FX rate {needsRate ? "(required)" : "(USD = 1)"}
-        </Label>
-        <Input
-          id="exchangeRate"
-          name="exchangeRate"
-          inputMode="decimal"
-          disabled={disabled || !needsRate}
-          defaultValue={needsRate ? (defaults?.exchangeRate ?? "") : ""}
-          placeholder={needsRate ? "USD per 1 unit" : "1"}
-        />
-      </div>
+      <ExchangeRateField
+        currency={currency}
+        amount={amount}
+        disabled={disabled}
+        editingExisting={editingExisting}
+        savedExchangeRate={defaults?.exchangeRate}
+      />
 
       <div className="grid gap-1.5">
         <Label htmlFor="dueDate">Due date (optional)</Label>

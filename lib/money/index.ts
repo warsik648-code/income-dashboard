@@ -6,23 +6,32 @@ export {
 } from "./decimal"
 
 export {
+  assertSupportedCurrency,
   BASE_CURRENCY,
-  SUPPORTED_CRYPTO,
-  SUPPORTED_FIAT,
+  isSupportedCurrency,
   isUsd,
   normalizeCurrencyCode,
+  SUPPORTED_CURRENCIES,
+  SUPPORTED_FIAT,
   type BaseCurrency,
-  type SupportedCrypto,
+  type SupportedCurrency,
   type SupportedFiat,
 } from "./currency"
 
 export {
   assertTransactionCurrencyMatchesAccount,
   buildFxSnapshot,
+  convertToBaseUsd,
+  isSameFrozenFx,
   type ExchangeRateSourceName,
   type FxSnapshot,
   type FxSnapshotInput,
 } from "./fx"
+
+export {
+  formatRateLabel,
+  previewBaseAmountUsd,
+} from "./fx-preview"
 
 export {
   getSubscriptionDisplayState,

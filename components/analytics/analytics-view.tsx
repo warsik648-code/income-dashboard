@@ -9,14 +9,12 @@ type Option = { id: string; name: string }
 
 export function AnalyticsView({
   accounts,
-  currencies,
   incomeCategories,
   expenseCategories,
   filters,
   data,
 }: {
   accounts: Option[]
-  currencies: string[]
   incomeCategories: Option[]
   expenseCategories: Option[]
   filters: {
@@ -42,7 +40,6 @@ export function AnalyticsView({
 
       <AnalyticsFilters
         accounts={accounts}
-        currencies={currencies}
         incomeCategories={incomeCategories}
         expenseCategories={expenseCategories}
         values={filters}

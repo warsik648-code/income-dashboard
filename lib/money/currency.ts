@@ -3,29 +3,18 @@ export const BASE_CURRENCY = "USD" as const
 
 export type BaseCurrency = typeof BASE_CURRENCY
 
-/** Common fiat codes; Zod allowlists may extend this over time. */
-export const SUPPORTED_FIAT = [
-  "USD",
-  "TRY",
-  "PKR",
-  "EUR",
-  "GBP",
-  "AED",
-  "SAR",
-] as const
+/**
+ * Only currencies the app supports for accounts, debts, filters, and FX.
+ * Exchange rates convert these to USD (base/reporting currency).
+ */
+export const SUPPORTED_CURRENCIES = ["USD", "PKR", "TRY"] as const
 
-export type SupportedFiat = (typeof SUPPORTED_FIAT)[number]
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number]
 
-/** Common crypto / stablecoin codes for CRYPTO assetClass accounts. */
-export const SUPPORTED_CRYPTO = [
-  "BTC",
-  "ETH",
-  "USDT",
-  "USDC",
-  "BNB",
-] as const
+/** @deprecated Use SUPPORTED_CURRENCIES — all supported codes are fiat. */
+export const SUPPORTED_FIAT = SUPPORTED_CURRENCIES
 
-export type SupportedCrypto = (typeof SUPPORTED_CRYPTO)[number]
+export type SupportedFiat = SupportedCurrency
 
 export function isUsd(currency: string): boolean {
   return currency.trim().toUpperCase() === BASE_CURRENCY
@@ -33,4 +22,21 @@ export function isUsd(currency: string): boolean {
 
 export function normalizeCurrencyCode(currency: string): string {
   return currency.trim().toUpperCase()
+}
+
+export function isSupportedCurrency(
+  currency: string
+): currency is SupportedCurrency {
+  const code = normalizeCurrencyCode(currency)
+  return (SUPPORTED_CURRENCIES as readonly string[]).includes(code)
+}
+
+export function assertSupportedCurrency(currency: string): SupportedCurrency {
+  const code = normalizeCurrencyCode(currency)
+  if (!isSupportedCurrency(code)) {
+    throw new Error(
+      `Unsupported currency “${code}”. Allowed: ${SUPPORTED_CURRENCIES.join(", ")}`
+    )
+  }
+  return code
 }

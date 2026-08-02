@@ -13,6 +13,7 @@ import {
   normalizeCurrencyCode,
   type MoneyDecimalString,
 } from "@/lib/money"
+import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import {
   BalanceServiceError,
@@ -81,24 +82,24 @@ function statusFromAmounts(
 function buildDebtFx(
   amount: string,
   currency: string,
-  exchangeRate?: string
+  exchangeRate?: string,
+  exchangeRateSource?: string | null
 ) {
   const code = normalizeCurrencyCode(currency)
   if (code !== "USD" && !exchangeRate?.trim()) {
     throw new DebtServiceError(
-      "Exchange rate (USD per 1 unit) is required for non-USD debts."
+      "Exchange rate (currency units per 1 USD) is required for non-USD debts."
     )
   }
   return buildFxSnapshot({
     amount: amount as MoneyDecimalString,
     currency: code,
     exchangeRate: exchangeRate?.trim() || undefined,
-    exchangeRateSource:
-      code === "USD"
-        ? "FIXED_USD"
-        : exchangeRate?.trim()
-          ? "USER_OVERRIDE"
-          : "MANUAL",
+    exchangeRateSource: resolveExchangeRateSource({
+      currency: code,
+      exchangeRate,
+      exchangeRateSource,
+    }),
   })
 }
 
@@ -224,7 +225,12 @@ export async function createDebt(
   input: CreateDebtInput
 ): Promise<Debt> {
   const currency = normalizeCurrencyCode(input.currency)
-  const fx = buildDebtFx(input.originalAmount, currency, input.exchangeRate)
+  const fx = buildDebtFx(
+    input.originalAmount,
+    currency,
+    input.exchangeRate,
+    input.exchangeRateSource
+  )
 
   let accountId: string | null = null
   if (input.accountId?.trim()) {
@@ -302,7 +308,8 @@ export async function updateDebt(
       input.exchangeRate ||
         (currency === existing.currency
           ? existing.exchangeRate.toString()
-          : undefined)
+          : undefined),
+      input.exchangeRateSource
     )
 
     if (paid.gt(fx.amount)) {
@@ -433,7 +440,8 @@ export async function recordDebtPayment(
       amount.toString(),
       debt.currency,
       input.exchangeRate ||
-        (debt.currency === "USD" ? undefined : debt.exchangeRate.toString())
+        (debt.currency === "USD" ? undefined : debt.exchangeRate.toString()),
+      input.exchangeRateSource
     )
 
     let transactionId: string | null = null

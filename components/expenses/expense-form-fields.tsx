@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 
+import { ExchangeRateField } from "@/components/money/exchange-rate-field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -49,6 +50,7 @@ type ExpenseFormFieldsProps = {
     allowOverdraft?: boolean
   }
   disabled?: boolean
+  editingExisting?: boolean
 }
 
 export function ExpenseFormFields({
@@ -56,15 +58,16 @@ export function ExpenseFormFields({
   categories,
   defaults,
   disabled,
+  editingExisting = false,
 }: ExpenseFormFieldsProps) {
   const [accountId, setAccountId] = useState(
     defaults?.accountId ?? accounts[0]?.id ?? ""
   )
+  const [amount, setAmount] = useState(defaults?.amount ?? "")
   const selected = useMemo(
     () => accounts.find((a) => a.id === accountId),
     [accounts, accountId]
   )
-  const needsRate = Boolean(selected && selected.currency !== "USD")
 
   if (accounts.length === 0) {
     return (
@@ -113,34 +116,28 @@ export function ExpenseFormFields({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="amount">
-            Amount {selected ? `(${selected.currency})` : ""}
-          </Label>
-          <Input
-            id="amount"
-            name="amount"
-            inputMode="decimal"
-            required
-            disabled={disabled}
-            defaultValue={defaults?.amount}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="exchangeRate">
-            FX rate {needsRate ? "(required)" : "(USD = 1)"}
-          </Label>
-          <Input
-            id="exchangeRate"
-            name="exchangeRate"
-            inputMode="decimal"
-            disabled={disabled || !needsRate}
-            defaultValue={needsRate ? (defaults?.exchangeRate ?? "") : ""}
-            placeholder={needsRate ? "USD per 1 unit" : "1"}
-          />
-        </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="amount">
+          Amount {selected ? `(${selected.currency})` : ""}
+        </Label>
+        <Input
+          id="amount"
+          name="amount"
+          inputMode="decimal"
+          required
+          disabled={disabled}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
       </div>
+
+      <ExchangeRateField
+        currency={selected?.currency ?? "USD"}
+        amount={amount}
+        disabled={disabled}
+        editingExisting={editingExisting}
+        savedExchangeRate={defaults?.exchangeRate}
+      />
 
       <div className="grid gap-1.5">
         <Label htmlFor="transactionDate">Date & time</Label>

@@ -1,25 +1,25 @@
 import { z } from "zod"
 
+import {
+  optionalCurrencyFilterSchema,
+  supportedCurrencySchema,
+} from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
-
-const currencyCode = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .min(2, "Currency is required")
-  .max(16)
-  .regex(/^[A-Z0-9]+$/, "Use letters/numbers only (e.g. USD, TRY, PKR)")
 
 const direction = z.enum(["LENT_OUT", "OWED_BY_ME"])
 const status = z.enum(["OPEN", "PARTIALLY_PAID", "PAID", "WRITTEN_OFF"])
+const exchangeRateSource = z
+  .enum(["MANUAL", "USER_OVERRIDE", "PROVIDER", "FIXED_USD", ""])
+  .optional()
 
 const baseDebtSchema = z
   .object({
     personName: z.string().trim().min(1, "Person name is required").max(120),
     direction,
     originalAmount: positiveDecimalString,
-    currency: currencyCode,
+    currency: supportedCurrencySchema,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
+    exchangeRateSource,
     dueDate: z.string().trim().optional().or(z.literal("")),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
     status: status.optional(),
@@ -39,7 +39,8 @@ const baseDebtSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["exchangeRate"],
-        message: "Exchange rate (USD per 1 unit) is required for non-USD debts",
+        message:
+          "Exchange rate (currency units per 1 USD) is required for non-USD debts",
       })
     }
   })
@@ -59,6 +60,7 @@ export const recordDebtPaymentSchema = z
     debtId: z.string().min(1),
     amount: z.string().trim().optional().or(z.literal("")),
     exchangeRate: z.string().trim().optional().or(z.literal("")),
+    exchangeRateSource,
     paymentDate: z.string().min(1, "Payment date is required"),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
     /** When set, also create INCOME/EXPENSE on this account. */
@@ -96,7 +98,7 @@ export const recordDebtPaymentSchema = z
 export const debtFiltersSchema = z.object({
   direction: direction.optional(),
   status: status.optional(),
-  currency: currencyCode.optional(),
+  currency: optionalCurrencyFilterSchema,
   deleted: z.enum(["1"]).optional(),
 })
 

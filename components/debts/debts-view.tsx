@@ -22,7 +22,6 @@ type DebtsViewProps = {
     currency?: string
     deleted?: string
   }
-  currencies: string[]
 }
 
 export function DebtsView({
@@ -30,7 +29,6 @@ export function DebtsView({
   entries,
   summary,
   filters,
-  currencies,
 }: DebtsViewProps) {
   const showDeleted = filters.deleted === "1"
 
@@ -46,7 +44,7 @@ export function DebtsView({
 
       {!showDeleted ? <DebtSummary {...summary} /> : null}
 
-      <DebtFilters currencies={currencies} values={filters} />
+      <DebtFilters values={filters} />
 
       {entries.length === 0 ? (
         <EmptyState

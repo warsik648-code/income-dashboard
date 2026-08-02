@@ -1,8 +1,8 @@
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
 type DebtFiltersProps = {
-  currencies: string[]
   values: {
     direction?: string
     status?: string
@@ -11,7 +11,7 @@ type DebtFiltersProps = {
   }
 }
 
-export function DebtFilters({ currencies, values }: DebtFiltersProps) {
+export function DebtFilters({ values }: DebtFiltersProps) {
   return (
     <form
       method="get"
@@ -56,7 +56,7 @@ export function DebtFilters({ currencies, values }: DebtFiltersProps) {
           className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
         >
           <option value="">All</option>
-          {currencies.map((currency) => (
+          {SUPPORTED_CURRENCIES.map((currency) => (
             <option key={currency} value={currency}>
               {currency}
             </option>

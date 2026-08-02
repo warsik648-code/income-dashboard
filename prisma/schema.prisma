@@ -2,7 +2,8 @@
 // Money fields use Decimal(19, 4). Amounts on Transaction are always positive;
 // direction comes from TransactionType. Soft-delete via deletedAt.
 // FX: amount/currency are ORIGINAL; baseAmountUsd is a frozen USD snapshot.
-// exchangeRate = USD per 1 unit of original currency.
+// exchangeRate = units of original currency per 1 USD (e.g. PKR per USD).
+// baseAmountUsd = amount / exchangeRate (USD: rate 1, amount unchanged).
 // Subscription renewals create expenses only when payment is confirmed (never on date alone).
 
 generator client {
@@ -186,9 +187,9 @@ model Transaction {
   amount          Decimal          @db.Decimal(19, 4)
   /// ORIGINAL currency / asset code
   currency        String
-  /// USD per 1 unit of original currency (frozen at save)
+  /// Units of original currency per 1 USD (frozen at save)
   exchangeRate    Decimal          @db.Decimal(24, 12)
-  /// Frozen USD snapshot: amount * exchangeRate
+  /// Frozen USD snapshot: amount / exchangeRate
   baseAmountUsd   Decimal          @db.Decimal(19, 4)
   exchangeRateAt  DateTime
   exchangeRateSource ExchangeRateSource

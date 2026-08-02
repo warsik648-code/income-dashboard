@@ -11,6 +11,8 @@ import {
   ACCOUNT_TYPES,
   ASSET_CLASSES,
 } from "@/components/accounts/account-constants"
+import { ExchangeRateField } from "@/components/money/exchange-rate-field"
+import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -30,6 +32,7 @@ const initialState: AccountActionState = {}
 export function CreateAccountDialog() {
   const [open, setOpen] = useState(false)
   const [currency, setCurrency] = useState("USD")
+  const [startingBalance, setStartingBalance] = useState("")
   const [state, formAction, pending] = useActionState(
     createAccountAction,
     initialState
@@ -40,11 +43,10 @@ export function CreateAccountDialog() {
     if (wasPending.current && !pending && state.ok) {
       setOpen(false)
       setCurrency("USD")
+      setStartingBalance("")
     }
     wasPending.current = pending
   }, [pending, state.ok])
-
-  const needsRate = currency.trim().toUpperCase() !== "USD"
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -116,16 +118,22 @@ export function CreateAccountDialog() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="currency">Currency / asset</Label>
-              <Input
+              <Label htmlFor="currency">Currency</Label>
+              <select
                 id="currency"
                 name="currency"
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                placeholder="USD"
                 required
                 disabled={pending}
-              />
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+              >
+                {SUPPORTED_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="institution">Institution</Label>
@@ -138,30 +146,32 @@ export function CreateAccountDialog() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="startingBalance">Starting balance</Label>
-              <Input
-                id="startingBalance"
-                name="startingBalance"
-                inputMode="decimal"
-                placeholder="Optional"
-                disabled={pending}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="exchangeRate">
-                FX rate {needsRate ? "(required)" : "(USD = 1)"}
-              </Label>
-              <Input
-                id="exchangeRate"
-                name="exchangeRate"
-                inputMode="decimal"
-                placeholder={needsRate ? "USD per 1 unit" : "1"}
-                disabled={pending || !needsRate}
-              />
-            </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="startingBalance">Starting balance</Label>
+            <Input
+              id="startingBalance"
+              name="startingBalance"
+              inputMode="decimal"
+              placeholder="Optional"
+              disabled={pending}
+              value={startingBalance}
+              onChange={(e) => setStartingBalance(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank for zero. A rate is only required when you enter a
+              non-USD starting balance.
+            </p>
           </div>
+
+          {startingBalance.trim() ? (
+            <ExchangeRateField
+              currency={currency}
+              amount={startingBalance}
+              disabled={pending}
+            />
+          ) : (
+            <input type="hidden" name="exchangeRate" value="" />
+          )}
 
           <div className="grid gap-1.5">
             <Label htmlFor="notes">Notes</Label>

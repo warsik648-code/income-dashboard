@@ -2,11 +2,16 @@ import { z } from "zod"
 
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
+const exchangeRateSource = z
+  .enum(["MANUAL", "USER_OVERRIDE", "PROVIDER", "FIXED_USD", ""])
+  .optional()
+
 export const createIncomeSchema = z
   .object({
     accountId: z.string().min(1, "Account is required"),
     amount: positiveDecimalString,
     exchangeRate: z.string().trim().optional().or(z.literal("")),
+    exchangeRateSource,
     transactionDate: z.string().min(1, "Date and time are required"),
     description: z.string().trim().min(1, "Source or description is required").max(200),
     counterparty: z.string().trim().max(120).optional().or(z.literal("")),

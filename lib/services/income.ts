@@ -1,7 +1,12 @@
 import type { PaymentMethod, Transaction } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
-import { buildFxSnapshot, type MoneyDecimalString } from "@/lib/money"
+import {
+  buildFxSnapshot,
+  isSameFrozenFx,
+  type MoneyDecimalString,
+} from "@/lib/money"
+import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import {
   BalanceServiceError,
@@ -81,7 +86,7 @@ export async function createIncome(
 
     if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
       throw new IncomeServiceError(
-        "Exchange rate (USD per 1 unit) is required for non-USD accounts."
+        "Exchange rate (currency units per 1 USD) is required for non-USD accounts."
       )
     }
 
@@ -89,12 +94,11 @@ export async function createIncome(
       amount: input.amount as MoneyDecimalString,
       currency: account.currency,
       exchangeRate: input.exchangeRate?.trim() || undefined,
-      exchangeRateSource:
-        account.currency === "USD"
-          ? "FIXED_USD"
-          : input.exchangeRate?.trim()
-            ? "USER_OVERRIDE"
-            : "MANUAL",
+      exchangeRateSource: resolveExchangeRateSource({
+        currency: account.currency,
+        exchangeRate: input.exchangeRate,
+        exchangeRateSource: input.exchangeRateSource,
+      }),
     })
 
     const created = await tx.transaction.create({
@@ -191,7 +195,7 @@ export async function updateIncome(
 
     if (account.currency !== "USD" && !input.exchangeRate?.trim()) {
       throw new IncomeServiceError(
-        "Exchange rate (USD per 1 unit) is required for non-USD accounts."
+        "Exchange rate (currency units per 1 USD) is required for non-USD accounts."
       )
     }
 
@@ -199,13 +203,14 @@ export async function updateIncome(
       amount: input.amount as MoneyDecimalString,
       currency: account.currency,
       exchangeRate: input.exchangeRate?.trim() || undefined,
-      exchangeRateSource:
-        account.currency === "USD"
-          ? "FIXED_USD"
-          : input.exchangeRate?.trim()
-            ? "USER_OVERRIDE"
-            : "MANUAL",
+      exchangeRateSource: resolveExchangeRateSource({
+        currency: account.currency,
+        exchangeRate: input.exchangeRate,
+        exchangeRateSource: input.exchangeRateSource,
+      }),
     })
+
+    const preserveFx = isSameFrozenFx(existing, fx)
 
     const updated = await tx.transaction.update({
       where: { id: existing.id },
@@ -213,10 +218,12 @@ export async function updateIncome(
         accountId: account.id,
         amount: fx.amount,
         currency: fx.currency,
-        exchangeRate: fx.exchangeRate,
-        baseAmountUsd: fx.baseAmountUsd,
-        exchangeRateAt: fx.exchangeRateAt,
-        exchangeRateSource: fx.exchangeRateSource,
+        exchangeRate: preserveFx ? existing.exchangeRate : fx.exchangeRate,
+        baseAmountUsd: preserveFx ? existing.baseAmountUsd : fx.baseAmountUsd,
+        exchangeRateAt: preserveFx ? existing.exchangeRateAt : fx.exchangeRateAt,
+        exchangeRateSource: preserveFx
+          ? existing.exchangeRateSource
+          : fx.exchangeRateSource,
         transactionDate: new Date(input.transactionDate),
         description: input.description.trim(),
         counterparty: emptyToNull(input.counterparty),

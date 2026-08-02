@@ -80,6 +80,7 @@ export function EditExpenseDialog({
             accounts={accounts}
             categories={categories}
             disabled={pending}
+            editingExisting
             defaults={{
               accountId: entry.accountId,
               categoryId: entry.categoryId ?? undefined,

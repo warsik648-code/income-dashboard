@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
 const billingFrequency = z.enum([
@@ -98,6 +99,9 @@ export const confirmPaidSchema = z.object({
   id: z.string().min(1),
   accountId: z.string().optional().or(z.literal("")),
   exchangeRate: z.string().trim().optional().or(z.literal("")),
+  exchangeRateSource: z
+    .enum(["MANUAL", "USER_OVERRIDE", "PROVIDER", "FIXED_USD", ""])
+    .optional(),
   allowOverdraft: z
     .union([z.literal("true"), z.literal("false"), z.literal(""), z.boolean()])
     .optional()
@@ -108,7 +112,7 @@ export const confirmPaidSchema = z.object({
 export const subscriptionFiltersSchema = z.object({
   status: status.optional(),
   accountId: z.string().optional(),
-  currency: z.string().trim().toUpperCase().optional(),
+  currency: optionalCurrencyFilterSchema,
   billingFrequency: billingFrequency.optional(),
   deleted: z.enum(["1"]).optional(),
 })

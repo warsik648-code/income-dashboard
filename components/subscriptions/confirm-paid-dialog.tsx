@@ -6,6 +6,7 @@ import {
   confirmPaidAction,
   type SubscriptionActionState,
 } from "@/app/(dashboard)/dashboard/subscriptions/actions"
+import { ExchangeRateField } from "@/components/money/exchange-rate-field"
 import type { SubscriptionAccountOption } from "@/components/subscriptions/subscription-form-fields"
 import { Button } from "@/components/ui/button"
 import {
@@ -59,8 +60,6 @@ export function ConfirmPaidDialog({
     () => matchingAccounts.find((a) => a.id === accountId),
     [matchingAccounts, accountId]
   )
-  const needsRate = Boolean(selected && selected.currency !== "USD")
-
   useEffect(() => {
     if (wasPending.current && !pending && state.ok) setOpen(false)
     wasPending.current = pending
@@ -113,18 +112,12 @@ export function ConfirmPaidDialog({
             </select>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor={`confirm-rate-${subscription.id}`}>
-              FX rate {needsRate ? "(required)" : "(USD = 1)"}
-            </Label>
-            <Input
-              id={`confirm-rate-${subscription.id}`}
-              name="exchangeRate"
-              inputMode="decimal"
-              disabled={pending || !needsRate}
-              placeholder={needsRate ? "USD per 1 unit" : "1"}
-            />
-          </div>
+          <ExchangeRateField
+            idPrefix={`confirm-${subscription.id}-`}
+            currency={selected?.currency ?? subscription.currency}
+            amount={subscription.price}
+            disabled={pending}
+          />
 
           <div className="grid gap-1.5">
             <Label htmlFor={`confirm-date-${subscription.id}`}>
