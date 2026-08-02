@@ -11,6 +11,36 @@ Do not deploy until Critical #3 (renewalPeriod unique) is applied, CI is green, 
 5. Rotate any secrets that were ever pasted in chat; remove `OWNER_EMAIL` / `OWNER_PASSWORD` from production after seed.
 6. Smoke test: login → dashboard → create income/expense → confirm subscription → export CSV (POST) → sign out.
 
+## Isolated integration-test database
+
+DB integration tests **must** use `TEST_DATABASE_URL`. They never fall back to `DATABASE_URL`.
+
+| Rule | Detail |
+|------|--------|
+| Required env | `TEST_DATABASE_URL` |
+| No fallback | If missing, integration suites skip (unit tests still run) |
+| Safety marker | DB name must contain `test`, or URL has `?integration_test=1`, or `INTEGRATION_TEST_DB_MARKER` matches the URL |
+| Separation | `TEST_DATABASE_URL` must not be identical to `DATABASE_URL` |
+| Data | Disposable `*.test` users only; cleaned up in `afterAll` |
+
+### Local setup
+
+```bash
+# 1. Create an isolated Postgres database (name must contain "test")
+createdb income_dashboard_test
+
+# 2. Put the URL in .env.local (do not commit secrets)
+# TEST_DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/income_dashboard_test?schema=public"
+
+# 3. Apply migrations to the test database only
+DATABASE_URL="$TEST_DATABASE_URL" pnpm exec prisma migrate deploy
+
+# 4. Run integration suites
+pnpm test:integration
+```
+
+Do **not** run integration tests against production or the primary app database.
+
 ## Soft-delete / ledger policy
 
 - Soft-deleting a **Subscription** or **Debt** archives the parent record only.

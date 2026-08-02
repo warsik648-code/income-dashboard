@@ -1,8 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-const hasDb = Boolean(process.env.DATABASE_URL?.trim())
+import {
+  installVerifiedTestDatabaseUrl,
+  resolveIntegrationTestDatabase,
+} from "@/lib/test/integration-database"
 
-describe.skipIf(!hasDb)("expense concurrency / balance lock", () => {
+const dbStatus = resolveIntegrationTestDatabase()
+
+if (dbStatus.ok) {
+  installVerifiedTestDatabaseUrl()
+}
+
+describe.skipIf(!dbStatus.ok)("expense concurrency / balance lock", () => {
   const suffix = `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   let userId = ""
   let accountId = ""
@@ -13,6 +22,7 @@ describe.skipIf(!hasDb)("expense concurrency / balance lock", () => {
   let Prisma: typeof import("@/generated/prisma/client").Prisma
 
   beforeAll(async () => {
+    installVerifiedTestDatabaseUrl()
     ;({ prisma } = await import("@/lib/db"))
     ;({ createExpense, ExpenseServiceError } = await import(
       "@/lib/services/expenses"
@@ -128,5 +138,13 @@ describe.skipIf(!hasDb)("expense concurrency / balance lock", () => {
       },
     })
     expect(expenses).toBe(1)
+  })
+})
+
+describe.runIf(
+  Boolean(process.env.TEST_DATABASE_URL?.trim()) && !dbStatus.ok
+)("expense concurrency database guard", () => {
+  it("fails closed when TEST_DATABASE_URL is set but unsafe", () => {
+    expect(dbStatus.ok, dbStatus.ok ? "" : dbStatus.message).toBe(true)
   })
 })

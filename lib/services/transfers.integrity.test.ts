@@ -2,32 +2,35 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 import type { CreateTransferInput } from "@/lib/validations/transfers"
 import type { UpdatePendingTransferInput } from "@/lib/validations/transfers"
+import {
+  installVerifiedTestDatabaseUrl,
+  resolveIntegrationTestDatabase,
+} from "@/lib/test/integration-database"
 
-async function canReachDatabase() {
-  if (!process.env.DATABASE_URL?.trim()) return false
-  try {
-    const { prisma } = await import("@/lib/db")
-    const probe = prisma.$queryRaw`SELECT 1`
-    const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("db probe timeout")), 2500)
-    })
-    await Promise.race([probe, timeout])
-    await prisma.$disconnect()
-    return true
-  } catch {
-    try {
-      const { prisma } = await import("@/lib/db")
-      await prisma.$disconnect()
-    } catch {
-      // ignore disconnect errors after failed probe
-    }
-    return false
-  }
+const dbStatus = resolveIntegrationTestDatabase()
+
+if (dbStatus.ok) {
+  installVerifiedTestDatabaseUrl()
 }
 
-const dbReachable = await canReachDatabase()
+describe("transfer integrity database selection", () => {
+  it("does not fall back to DATABASE_URL when TEST_DATABASE_URL is missing", () => {
+    if (dbStatus.ok) {
+      expect(dbStatus.url).toBe(process.env.TEST_DATABASE_URL?.trim())
+      expect(dbStatus.url).not.toBeUndefined()
+      return
+    }
+    expect(dbStatus.reason).toBe("missing")
+  })
 
-describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
+  it.runIf(
+    Boolean(process.env.TEST_DATABASE_URL?.trim()) && !dbStatus.ok
+  )("fails closed when TEST_DATABASE_URL is set but unsafe", () => {
+    expect(dbStatus.ok, dbStatus.ok ? "" : dbStatus.message).toBe(true)
+  })
+})
+
+describe.skipIf(!dbStatus.ok)("transfer integrity (DB)", () => {
   const suffix = `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   let userId = ""
   let usdFromId = ""
@@ -43,6 +46,7 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
   let TransferServiceError: typeof import("@/lib/services/transfers").TransferServiceError
   let Prisma: typeof import("@/generated/prisma/client").Prisma
   let recomputeCachedBalance: typeof import("@/lib/services/balances").recomputeCachedBalance
+  let testDatabaseUrl = ""
 
   async function seedIncome(
     accountId: string,
@@ -90,7 +94,17 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     })
   }
 
+  async function expectMatchesLedger(
+    accountId: string,
+    currency: string,
+    cached: string | undefined
+  ) {
+    expect(cached).toBeDefined()
+    expect(cached).toBe(await ledgerBalance(accountId, currency))
+  }
+
   beforeAll(async () => {
+    testDatabaseUrl = installVerifiedTestDatabaseUrl()
     ;({ prisma } = await import("@/lib/db"))
     ;({ recomputeCachedBalance } = await import("@/lib/services/balances"))
     ;({
@@ -184,6 +198,11 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     return { id, ...baseInput(from, to, overrides) }
   }
 
+  it("uses only the verified TEST_DATABASE_URL", () => {
+    expect(testDatabaseUrl).toBe(process.env.TEST_DATABASE_URL?.trim())
+    expect(process.env.DATABASE_URL).toBe(testDatabaseUrl)
+  })
+
   it("PENDING → COMPLETED without fee updates both balances", async () => {
     const before = await balances([usdFromId, usdToId])
     const { transfer } = await createTransfer(
@@ -214,8 +233,8 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     expect(after[usdToId]).toBe(
       new Prisma.Decimal(before[usdToId]!).plus(25).toString()
     )
-    expect(after[usdFromId]).toBe(await ledgerBalance(usdFromId, "USD"))
-    expect(after[usdToId]).toBe(await ledgerBalance(usdToId, "USD"))
+    await expectMatchesLedger(usdFromId, "USD", after[usdFromId])
+    await expectMatchesLedger(usdToId, "USD", after[usdToId])
   })
 
   it("PENDING → COMPLETED with separate fee applies fee once", async () => {
@@ -265,7 +284,8 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     expect(after[usdToId]).toBe(
       new Prisma.Decimal(before[usdToId]!).plus(40).toString()
     )
-    expect(after[usdFromId]).toBe(await ledgerBalance(usdFromId, "USD"))
+    await expectMatchesLedger(usdFromId, "USD", after[usdFromId])
+    await expectMatchesLedger(usdToId, "USD", after[usdToId])
   })
 
   it("PENDING → COMPLETED with fee reflected only in destination amount", async () => {
@@ -310,6 +330,8 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     expect(after[usdToId]).toBe(
       new Prisma.Decimal(before[usdToId]!).plus(48).toString()
     )
+    await expectMatchesLedger(usdFromId, "USD", after[usdFromId])
+    await expectMatchesLedger(usdToId, "USD", after[usdToId])
   })
 
   it("duplicate completion attempt does not apply balances twice", async () => {
@@ -391,16 +413,18 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     )
     const mid = await balances([usdFromId, usdToId])
     expect(mid[usdFromId]).not.toBe(before[usdFromId])
+    await expectMatchesLedger(usdFromId, "USD", mid[usdFromId])
+    await expectMatchesLedger(usdToId, "USD", mid[usdToId])
 
     await reverseTransfer(userId, transfer.id)
     const after = await balances([usdFromId, usdToId])
     expect(after[usdFromId]).toBe(before[usdFromId])
     expect(after[usdToId]).toBe(before[usdToId])
-    expect(after[usdFromId]).toBe(await ledgerBalance(usdFromId, "USD"))
-    expect(after[usdToId]).toBe(await ledgerBalance(usdToId, "USD"))
+    await expectMatchesLedger(usdFromId, "USD", after[usdFromId])
+    await expectMatchesLedger(usdToId, "USD", after[usdToId])
   })
 
-  it("TRY/PKR separate fees store source currency and count once", async () => {
+  it("TRY/PKR separate fees store source currency and match ledger", async () => {
     const tryBefore = await balances([tryFromId, tryToId])
     const { transfer: tryTransfer } = await createTransfer(
       userId,
@@ -422,10 +446,15 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
     })
     expect(tryFees).toHaveLength(1)
     expect(tryFees[0]?.currency).toBe("TRY")
-    const tryAfter = await balances([tryFromId])
+    const tryAfter = await balances([tryFromId, tryToId])
     expect(tryAfter[tryFromId]).toBe(
       new Prisma.Decimal(tryBefore[tryFromId]!).minus(105).toString()
     )
+    expect(tryAfter[tryToId]).toBe(
+      new Prisma.Decimal(tryBefore[tryToId]!).plus(100).toString()
+    )
+    await expectMatchesLedger(tryFromId, "TRY", tryAfter[tryFromId])
+    await expectMatchesLedger(tryToId, "TRY", tryAfter[tryToId])
 
     const pkrBefore = await balances([pkrFromId, pkrToId])
     const { transfer: pkrTransfer } = await createTransfer(
@@ -443,10 +472,15 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
       })
     )
     expect(pkrTransfer.feeCurrency).toBe("PKR")
-    const pkrAfter = await balances([pkrFromId])
+    const pkrAfter = await balances([pkrFromId, pkrToId])
     expect(pkrAfter[pkrFromId]).toBe(
       new Prisma.Decimal(pkrBefore[pkrFromId]!).minus(210).toString()
     )
+    expect(pkrAfter[pkrToId]).toBe(
+      new Prisma.Decimal(pkrBefore[pkrToId]!).plus(200).toString()
+    )
+    await expectMatchesLedger(pkrFromId, "PKR", pkrAfter[pkrFromId])
+    await expectMatchesLedger(pkrToId, "PKR", pkrAfter[pkrToId])
   })
 
   it("idempotency: same key creates one transfer; new key creates another", async () => {
@@ -490,11 +524,5 @@ describe.skipIf(!dbReachable)("transfer integrity (DB)", () => {
       },
     })
     expect(count).toBe(2)
-  })
-})
-
-describe.runIf(!dbReachable)("transfer integrity (DB availability)", () => {
-  it("skips DB integration tests when database is unreachable", () => {
-    expect(dbReachable).toBe(false)
   })
 })

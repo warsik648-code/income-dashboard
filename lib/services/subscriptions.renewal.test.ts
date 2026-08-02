@@ -1,8 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-const hasDb = Boolean(process.env.DATABASE_URL?.trim())
+import {
+  installVerifiedTestDatabaseUrl,
+  resolveIntegrationTestDatabase,
+} from "@/lib/test/integration-database"
 
-describe.skipIf(!hasDb)("subscription renewalPeriod unique", () => {
+const dbStatus = resolveIntegrationTestDatabase()
+
+if (dbStatus.ok) {
+  installVerifiedTestDatabaseUrl()
+}
+
+describe.skipIf(!dbStatus.ok)("subscription renewalPeriod unique", () => {
   const suffix = `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   let userId = ""
   let accountId = ""
@@ -13,6 +22,7 @@ describe.skipIf(!hasDb)("subscription renewalPeriod unique", () => {
   let Prisma: typeof import("@/generated/prisma/client").Prisma
 
   beforeAll(async () => {
+    installVerifiedTestDatabaseUrl()
     ;({ prisma } = await import("@/lib/db"))
     ;({ confirmRenewalPayment, SubscriptionServiceError } = await import(
       "@/lib/services/subscriptions"
@@ -110,9 +120,11 @@ describe.skipIf(!hasDb)("subscription renewalPeriod unique", () => {
     // Rewind nextRenewalDate so the same period key is attempted again.
     await prisma.subscription.update({
       where: { id: subscriptionId },
-      data: { nextRenewalDate: expense.renewalPeriod
-        ? new Date(expense.renewalPeriod)
-        : new Date() },
+      data: {
+        nextRenewalDate: expense.renewalPeriod
+          ? new Date(expense.renewalPeriod)
+          : new Date(),
+      },
     })
 
     await expect(
@@ -134,5 +146,13 @@ describe.skipIf(!hasDb)("subscription renewalPeriod unique", () => {
       },
     })
     expect(count).toBe(1)
+  })
+})
+
+describe.runIf(
+  Boolean(process.env.TEST_DATABASE_URL?.trim()) && !dbStatus.ok
+)("subscription renewal database guard", () => {
+  it("fails closed when TEST_DATABASE_URL is set but unsafe", () => {
+    expect(dbStatus.ok, dbStatus.ok ? "" : dbStatus.message).toBe(true)
   })
 })
