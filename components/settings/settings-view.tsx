@@ -30,6 +30,7 @@ import {
   startOfAppMonth,
 } from "@/lib/time"
 import { PageHeader } from "@/components/layout/page-header"
+import { WalletIntegrationsSettings } from "@/components/wallets/wallet-integrations-settings"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,6 +43,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { CategoryManageItem, SettingsProfile } from "@/lib/services/settings"
+import type { WalletIntegrationListItem } from "@/lib/wallets"
 
 const initialState: SettingsActionState = {}
 
@@ -49,6 +51,7 @@ type AccountOption = {
   id: string
   name: string
   currency: string
+  type: string
 }
 
 function formatBytes(size: number) {
@@ -62,12 +65,14 @@ export function SettingsView({
   accounts,
   categories,
   attachmentUsage,
+  walletIntegrations,
   sessionInfo,
 }: {
   profile: SettingsProfile
   accounts: AccountOption[]
   categories: CategoryManageItem[]
   attachmentUsage: { fileCount: number; totalBytes: number }
+  walletIntegrations: WalletIntegrationListItem[]
   sessionInfo: {
     registrationDisabled: boolean
     maxAgeHours: number
@@ -395,6 +400,11 @@ export function SettingsView({
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-3">
+        <WalletIntegrationsSettings
+          integrations={walletIntegrations}
+          accounts={accounts}
+        />
+
         <Card className="border-border/70 bg-card/70 shadow-none xl:col-span-1">
           <CardHeader>
             <CardTitle className="text-base tracking-tight">Export</CardTitle>

@@ -114,3 +114,17 @@ export {
   type CategoryManageItem,
   type SettingsProfile,
 } from "./settings"
+
+export {
+  WalletIntegrationServiceError,
+  ensureWalletIntegrations,
+  getWalletDashboard,
+  listWalletIntegrations,
+  refreshAllWalletIntegrations,
+  refreshWalletIntegration,
+  testWalletConnection,
+  updateWalletIntegration,
+  type WalletAssetDashboardRow,
+  type WalletDashboard,
+  type WalletIntegrationListItem,
+} from "./wallet-integrations"

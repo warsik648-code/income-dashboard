@@ -9,6 +9,7 @@ import {
   getSettingsProfile,
   listManagedCategories,
 } from "@/lib/services/settings"
+import { listWalletIntegrations } from "@/lib/services/wallet-integrations"
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -17,12 +18,14 @@ export default async function SettingsPage() {
   const userId = session.user.id
   await ensureExpenseCategories(userId)
 
-  const [profile, accounts, categories, attachmentUsage] = await Promise.all([
-    getSettingsProfile(userId),
-    listSelectableAccounts(userId),
-    listManagedCategories(userId, { includeArchived: true }),
-    getAttachmentUsageSummary(userId),
-  ])
+  const [profile, accounts, categories, attachmentUsage, walletIntegrations] =
+    await Promise.all([
+      getSettingsProfile(userId),
+      listSelectableAccounts(userId),
+      listManagedCategories(userId, { includeArchived: true }),
+      getAttachmentUsageSummary(userId),
+      listWalletIntegrations(userId),
+    ])
 
   return (
     <SettingsView
@@ -31,9 +34,11 @@ export default async function SettingsPage() {
         id: account.id,
         name: account.name,
         currency: account.currency,
+        type: account.type,
       }))}
       categories={categories}
       attachmentUsage={attachmentUsage}
+      walletIntegrations={walletIntegrations}
       sessionInfo={{
         registrationDisabled: true,
         maxAgeHours: 8,

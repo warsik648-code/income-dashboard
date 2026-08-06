@@ -90,3 +90,9 @@ export {
   type UpdateCategoryInput,
   type UpdatePreferencesInput,
 } from "./settings"
+
+export {
+  updateWalletIntegrationSchema,
+  walletIntegrationIdSchema,
+  type UpdateWalletIntegrationInput,
+} from "./wallet-integrations"

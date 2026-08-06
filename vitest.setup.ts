@@ -1,4 +1,8 @@
 import { config as loadEnv } from "dotenv"
+import { vi } from "vitest"
+
+// Allow importing server-only modules under Vitest (Node).
+vi.mock("server-only", () => ({}))
 
 loadEnv({ path: ".env" })
 loadEnv({ path: ".env.local", override: true })

@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Repeat,
   Wallet,
+  Link2,
   ChartColumn,
   HandCoins,
   Settings,
@@ -55,6 +56,12 @@ export const mainNavItems: NavItem[] = [
     href: "/dashboard/accounts",
     icon: Wallet,
     description: "TRUST, Binance, Bank, Cash, and other balances.",
+  },
+  {
+    title: "Wallet Integrations",
+    href: "/dashboard/wallets",
+    icon: Link2,
+    description: "Read-only blockchain balances for TRUST and Binance.",
   },
   {
     title: "Analytics",

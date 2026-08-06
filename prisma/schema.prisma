@@ -108,6 +108,26 @@ enum TransferStatus {
   REVERSED
 }
 
+/// Read-only blockchain balance tracker wallet group (not a signing wallet).
+enum WalletName {
+  TRUST
+  BINANCE
+}
+
+enum WalletAsset {
+  USDT
+  BTC
+  ETH
+  LTC
+}
+
+enum WalletNetwork {
+  TRON
+  BITCOIN
+  ETHEREUM
+  LITECOIN
+}
+
 model User {
   id                       String    @id @default(cuid())
   email                    String    @unique
@@ -137,6 +157,7 @@ model User {
   transfers             Transfer[]
   attachments           Attachment[]
   auditLogs             AuditLog[]
+  walletIntegrations    WalletIntegration[]
 
   @@index([defaultIncomeAccountId])
   @@index([defaultExpenseAccountId])
@@ -166,11 +187,34 @@ model FinancialAccount {
   subscriptions          Subscription[]
   transfersFrom          Transfer[]     @relation("TransferFromAccount")
   transfersTo            Transfer[]     @relation("TransferToAccount")
+  walletIntegrations     WalletIntegration[]
 
   @@unique([userId, type, name])
   @@index([userId, deletedAt])
   @@index([userId, assetClass, deletedAt])
   @@index([userId, isArchived, deletedAt])
+}
+
+/// Public-address-only blockchain balance watchers. Never stores keys or signs.
+model WalletIntegration {
+  id                    String        @id @default(cuid())
+  userId                String
+  walletName            WalletName
+  asset                 WalletAsset
+  network               WalletNetwork
+  publicAddress         String        @default("")
+  financialAccountId    String?
+  isEnabled             Boolean       @default(true)
+  lastSuccessfulRefresh DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id])
+  account FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, walletName, asset, network])
+  @@index([userId, isEnabled])
+  @@index([financialAccountId])
 }
 
 model Category {

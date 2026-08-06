@@ -60,6 +60,31 @@ A future migration to `timestamptz` is **deferred**. Do not change column types 
 
 See also: known integration-test flake notes in `docs/expenses-concurrency-flake.md` (unrelated to timezone parsing).
 
+## Wallet Integrations (read-only)
+
+Public-address blockchain balance watchers for TRUST / BINANCE (USDT TRC20, BTC, ETH, LTC).
+
+| Rule | Detail |
+|------|--------|
+| Secrets | Never request or store seed phrases, private keys, or WalletConnect |
+| Ledger | Never auto-create income/expenses/transfers; never overwrite `cachedBalance` |
+| Cache | In-process 3-minute TTL; manual refresh bypasses cache (rate limited) |
+| Keys | Optional `TRONGRID_API_KEY`, `ETHEREUM_RPC_URL` (required for ETH), optional `BLOCKCYPHER_TOKEN` — server-only |
+| Time | Provider Unix seconds/ms parsed as UTC; display via Europe/Istanbul helpers |
+
+### Provider timestamp units
+
+| Provider | Unit |
+|----------|------|
+| TronGrid | Unix **milliseconds** when present |
+| mempool.space (Bitcoin) | Unix **seconds** → `* 1000` |
+| Ethereum JSON-RPC block time | Unix **seconds** (hex) |
+| BlockCypher (Litecoin) | Unix **seconds** (or ISO-8601 with Z/offset) |
+
+### Production migration
+
+Migration `20260806160000_add_wallet_integrations` adds `WalletIntegration` only. Apply to production with `prisma migrate deploy` **only after explicit approval**. It does not modify financial balances or transactions. Until then, the feature requires the new table.
+
 ## Soft-delete / ledger policy
 
 - Soft-deleting a **Subscription** or **Debt** archives the parent record only.
