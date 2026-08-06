@@ -1,27 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 
-const LOGO_HOST_ALLOWLIST = new Set([
-  "cdn.jsdelivr.net",
-  "raw.githubusercontent.com",
-  "images.unsplash.com",
-  "logo.clearbit.com",
-  "www.google.com",
-  "upload.wikimedia.org",
-])
-
-function isSafeHttpsLogoUrl(value: string | null | undefined): value is string {
-  if (!value?.trim()) return false
-  try {
-    const url = new URL(value.trim())
-    if (url.protocol !== "https:") return false
-    const host = url.hostname.toLowerCase()
-    return LOGO_HOST_ALLOWLIST.has(host) || host.endsWith(".clearbit.com")
-  } catch {
-    return false
-  }
-}
+import { isSafeHttpsLogoUrl } from "@/lib/subscriptions/logo-url"
 
 function initialsFrom(name: string, provider: string) {
   const source = (name || provider || "?").trim()
@@ -46,14 +28,16 @@ export function SubscriptionLogo({
   const showImage = Boolean(safeUrl) && !broken
 
   return (
-    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground">
+    <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground">
       {showImage ? (
-        // Remote logos are user-supplied https URLs; onError falls back to initials.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={safeUrl!}
           alt=""
+          width={40}
+          height={40}
           className="size-full object-contain p-1"
+          // Hotlink-sensitive CDNs (e.g. gstatic) often block the optimizer.
+          unoptimized
           referrerPolicy="no-referrer"
           onError={() => setBroken(true)}
         />

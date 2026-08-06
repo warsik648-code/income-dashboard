@@ -1,5 +1,7 @@
 import type { NextConfig } from "next"
 
+import { SUBSCRIPTION_LOGO_REMOTE_PATTERNS } from "./lib/subscriptions/logo-url"
+
 const isProd = process.env.NODE_ENV === "production"
 
 /**
@@ -59,6 +61,11 @@ if (isProd) {
 }
 
 const nextConfig: NextConfig = {
+  images: {
+    // Narrow allowlist for subscription logos — keep in sync with
+    // lib/subscriptions/logo-url.ts (no catch-all hostname wildcards).
+    remotePatterns: SUBSCRIPTION_LOGO_REMOTE_PATTERNS,
+  },
   async headers() {
     return [
       {

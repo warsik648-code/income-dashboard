@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { isSafeHttpsLogoUrl } from "@/lib/subscriptions/logo-url"
 import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
@@ -31,13 +32,8 @@ const logoUrlSchema = z
   .or(z.literal(""))
   .refine((value) => {
     if (!value) return true
-    try {
-      const url = new URL(value)
-      return url.protocol === "https:"
-    } catch {
-      return false
-    }
-  }, "Logo URL must be a valid https:// link")
+    return isSafeHttpsLogoUrl(value)
+  }, "Logo URL must use an allowed https image host")
 
 const baseSubscriptionSchema = z
   .object({
