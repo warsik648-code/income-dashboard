@@ -45,3 +45,4 @@ next-env.d.ts
 
 # prisma generated client
 /generated/prisma
+.env.integration
