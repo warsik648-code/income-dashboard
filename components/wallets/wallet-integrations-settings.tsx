@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 
 import {
   disableWalletIntegrationAction,
@@ -10,6 +10,10 @@ import {
   type WalletActionState,
 } from "@/app/(dashboard)/dashboard/wallets/actions"
 import { CryptoAssetHeading } from "@/components/crypto"
+import {
+  maskWalletAddress,
+  useStreamerModeOptional,
+} from "@/components/streamer-mode"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -75,6 +79,8 @@ function WalletIntegrationSettingsRow({
   row: WalletIntegrationListItem
   accounts: AccountOption[]
 }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
+  const [revealed, setRevealed] = useState(false)
   const [saveState, saveAction, savePending] = useActionState(
     updateWalletIntegrationAction,
     initialState
@@ -94,7 +100,12 @@ function WalletIntegrationSettingsRow({
 
   const pending =
     savePending || testPending || refreshPending || disablePending
-  const feedback =
+  const showFullAddress = !streamerMode && revealed
+  const maskedAddress = row.publicAddress
+    ? maskWalletAddress(row.publicAddress)
+    : ""
+
+  const rawFeedback =
     saveState.error ||
     testState.error ||
     refreshState.error ||
@@ -106,6 +117,21 @@ function WalletIntegrationSettingsRow({
     refreshState.message ||
     disableState.message
 
+  const feedback = streamerMode
+    ? rawFeedback
+      ? "Hidden"
+      : null
+    : rawFeedback
+
+  const feedbackIsError =
+    !streamerMode &&
+    Boolean(
+      saveState.error ||
+        testState.error ||
+        refreshState.error ||
+        disableState.error
+    )
+
   return (
     <div className="space-y-3 rounded-lg border border-border/60 bg-background/20 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -113,13 +139,15 @@ function WalletIntegrationSettingsRow({
           <CryptoAssetHeading asset={row.asset} network={row.network} />
           <p className="text-xs text-muted-foreground">
             {row.walletName} · Network {row.network}
-            {row.lastSuccessfulRefresh
+            {!streamerMode && row.lastSuccessfulRefresh
               ? ` · Last refresh ${formatAppDateTime(row.lastSuccessfulRefresh)}`
-              : ""}
+              : streamerMode
+                ? " · Last refresh Hidden"
+                : ""}
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          {row.isEnabled ? "Enabled" : "Disabled"}
+          {row.isEnabled ? "Connected" : "Disabled"}
         </p>
       </div>
 
@@ -130,15 +158,63 @@ function WalletIntegrationSettingsRow({
 
         <div className="grid gap-1.5 md:col-span-2">
           <Label htmlFor={`addr-${row.id}`}>Public Address</Label>
-          <Input
-            id={`addr-${row.id}`}
-            name="publicAddress"
-            defaultValue={row.publicAddress}
-            placeholder={`${row.network} public address`}
-            autoComplete="off"
-            spellCheck={false}
-            disabled={pending}
-          />
+          {showFullAddress ? (
+            <Input
+              id={`addr-${row.id}`}
+              name="publicAddress"
+              defaultValue={row.publicAddress}
+              placeholder={`${row.network} public address`}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={pending}
+            />
+          ) : (
+            <>
+              <input
+                type="hidden"
+                name="publicAddress"
+                value={row.publicAddress}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  id={`addr-${row.id}`}
+                  readOnly
+                  value={
+                    maskedAddress ||
+                    (streamerMode ? "Hidden" : "No address configured")
+                  }
+                  className="font-mono"
+                  disabled={pending}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={streamerMode || pending || !row.publicAddress}
+                  title={
+                    streamerMode
+                      ? "Reveal is disabled while Streamer Mode is on"
+                      : "Reveal full public address"
+                  }
+                  onClick={() => setRevealed(true)}
+                >
+                  Reveal
+                </Button>
+              </div>
+            </>
+          )}
+          {!streamerMode && showFullAddress && row.publicAddress ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="w-fit"
+              disabled={pending}
+              onClick={() => setRevealed(false)}
+            >
+              Hide address
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid gap-1.5 md:col-span-2">
@@ -199,10 +275,7 @@ function WalletIntegrationSettingsRow({
       {feedback ? (
         <p
           className={
-            saveState.error ||
-            testState.error ||
-            refreshState.error ||
-            disableState.error
+            feedbackIsError
               ? "text-xs text-destructive"
               : "text-xs text-muted-foreground"
           }

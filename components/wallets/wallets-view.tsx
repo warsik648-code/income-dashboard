@@ -10,6 +10,10 @@ import {
 } from "@/app/(dashboard)/dashboard/wallets/actions"
 import { CryptoAssetHeading } from "@/components/crypto"
 import { PageHeader } from "@/components/layout/page-header"
+import {
+  STREAMER_HIDDEN_PLACEHOLDER,
+  useStreamerModeOptional,
+} from "@/components/streamer-mode"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,7 +51,24 @@ function formatSigned(diff: string | null): string {
   return diff
 }
 
+function networkLabel(network: string, asset: string): string {
+  if (asset === "USDT" && network === "TRON") return "TRC20"
+  switch (network) {
+    case "BITCOIN":
+      return "Bitcoin"
+    case "ETHEREUM":
+      return "Ethereum"
+    case "LITECOIN":
+      return "Litecoin"
+    case "TRON":
+      return "TRON"
+    default:
+      return network
+  }
+}
+
 export function WalletsView({ dashboard }: { dashboard: WalletDashboard }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [refreshAllState, refreshAllAction, refreshAllPending] = useActionState(
     refreshAllWalletIntegrationsAction,
     initialState
@@ -75,11 +96,14 @@ export function WalletsView({ dashboard }: { dashboard: WalletDashboard }) {
         </form>
       </div>
 
-      {refreshAllState.error ? (
+      {!streamerMode && refreshAllState.error ? (
         <p className="text-sm text-destructive">{refreshAllState.error}</p>
       ) : null}
-      {refreshAllState.message ? (
+      {!streamerMode && refreshAllState.message ? (
         <p className="text-sm text-muted-foreground">{refreshAllState.message}</p>
+      ) : null}
+      {streamerMode && (refreshAllState.error || refreshAllState.message) ? (
+        <p className="text-sm text-muted-foreground">Hidden</p>
       ) : null}
 
       <p className="text-xs text-muted-foreground">
@@ -95,7 +119,11 @@ export function WalletsView({ dashboard }: { dashboard: WalletDashboard }) {
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             {group.rows.map((row) => (
-              <AssetCard key={`${row.id}-${tick}`} row={row} />
+              <AssetCard
+                key={`${row.id}-${tick}`}
+                row={row}
+                streamerMode={streamerMode}
+              />
             ))}
           </div>
         </div>
@@ -106,13 +134,29 @@ export function WalletsView({ dashboard }: { dashboard: WalletDashboard }) {
 
 function AssetCard({
   row,
+  streamerMode,
 }: {
   row: WalletDashboard["groups"][number]["rows"][number]
+  streamerMode: boolean
 }) {
   const [state, action, pending] = useActionState(
     refreshWalletIntegrationAction,
     initialState
   )
+
+  const liveDisplay = streamerMode
+    ? STREAMER_HIDDEN_PLACEHOLDER
+    : row.liveBalance !== null
+      ? `${row.liveBalance} ${row.asset}`
+      : "—"
+  const recordedDisplay = streamerMode
+    ? STREAMER_HIDDEN_PLACEHOLDER
+    : row.recordedBalance !== null
+      ? `${row.recordedBalance} ${row.recordedCurrency ?? ""}`.trim()
+      : "—"
+  const differenceDisplay = streamerMode
+    ? STREAMER_HIDDEN_PLACEHOLDER
+    : formatSigned(row.difference)
 
   return (
     <Card className="border-border/70 bg-card/70 shadow-none">
@@ -122,15 +166,21 @@ function AssetCard({
             <CardTitle className="sr-only">{row.asset}</CardTitle>
             <CryptoAssetHeading asset={row.asset} network={row.network} />
             <CardDescription>
-              {row.network}
-              {row.linkedAccount
+              {networkLabel(row.network, row.asset)}
+              {!streamerMode && row.linkedAccount
                 ? ` · Linked: ${row.linkedAccount.name}`
-                : " · No linked account"}
+                : !streamerMode
+                  ? " · No linked account"
+                  : null}
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-1">
-            {!row.isEnabled ? <Badge variant="outline">Disabled</Badge> : null}
-            {row.fromCache ? <Badge variant="secondary">Cached</Badge> : null}
+            <Badge variant={row.isEnabled ? "secondary" : "outline"}>
+              {row.isEnabled ? "Connected" : "Disabled"}
+            </Badge>
+            {!streamerMode && row.fromCache ? (
+              <Badge variant="secondary">Cached</Badge>
+            ) : null}
           </div>
         </div>
       </CardHeader>
@@ -138,47 +188,50 @@ function AssetCard({
         <dl className="grid grid-cols-2 gap-3">
           <div>
             <dt className="text-xs text-muted-foreground">Live Balance</dt>
-            <dd className="font-mono tabular-nums">
-              {row.liveBalance !== null
-                ? `${row.liveBalance} ${row.asset}`
-                : "—"}
-            </dd>
+            <dd className="font-mono tabular-nums">{liveDisplay}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Recorded Balance</dt>
-            <dd className="font-mono tabular-nums">
-              {row.recordedBalance !== null
-                ? `${row.recordedBalance} ${row.recordedCurrency ?? ""}`.trim()
-                : "—"}
-            </dd>
+            <dd className="font-mono tabular-nums">{recordedDisplay}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Difference</dt>
-            <dd className="font-mono tabular-nums">
-              {formatSigned(row.difference)}
-            </dd>
+            <dd className="font-mono tabular-nums">{differenceDisplay}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Last Updated</dt>
             <dd>
-              <span className="block">{formatRelativeFromUtc(row.fetchedAt)}</span>
-              {row.fetchedAt ? (
-                <span className="text-xs text-muted-foreground">
-                  {formatAppDateTime(row.fetchedAt)}
+              {streamerMode ? (
+                <span className="font-mono tabular-nums">
+                  {STREAMER_HIDDEN_PLACEHOLDER}
                 </span>
-              ) : null}
+              ) : (
+                <>
+                  <span className="block">
+                    {formatRelativeFromUtc(row.fetchedAt)}
+                  </span>
+                  {row.fetchedAt ? (
+                    <span className="text-xs text-muted-foreground">
+                      {formatAppDateTime(row.fetchedAt)}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </dd>
           </div>
         </dl>
 
-        {row.error ? (
+        {!streamerMode && row.error ? (
           <p className="text-xs text-destructive">{row.error}</p>
         ) : null}
-        {state.error ? (
+        {!streamerMode && state.error ? (
           <p className="text-xs text-destructive">{state.error}</p>
         ) : null}
-        {state.message ? (
+        {!streamerMode && state.message ? (
           <p className="text-xs text-muted-foreground">{state.message}</p>
+        ) : null}
+        {streamerMode && (row.error || state.error || state.message) ? (
+          <p className="text-xs text-muted-foreground">Hidden</p>
         ) : null}
 
         <div className="flex flex-wrap gap-2">
@@ -196,7 +249,7 @@ function AssetCard({
               Refresh
             </Button>
           </form>
-          {row.explorerUrl ? (
+          {!streamerMode && row.explorerUrl ? (
             <a
               href={row.explorerUrl}
               target="_blank"
@@ -206,6 +259,11 @@ function AssetCard({
               <ExternalLink className="size-3.5" />
               View Explorer
             </a>
+          ) : null}
+          {streamerMode ? (
+            <span className="inline-flex h-6 items-center px-2 text-xs text-muted-foreground">
+              Explorer Hidden
+            </span>
           ) : null}
         </div>
       </CardContent>

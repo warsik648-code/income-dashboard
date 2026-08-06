@@ -18,4 +18,9 @@ export {
   StreamerModeSidebarControl,
   StreamerModeSettingsCard,
 } from "./streamer-mode-toggle"
-export { maskSensitivePlain } from "@/lib/streamer-mode/mask"
+export {
+  STREAMER_HIDDEN_PLACEHOLDER,
+  maskSensitiveOrHidden,
+  maskSensitivePlain,
+  maskWalletAddress,
+} from "@/lib/streamer-mode/mask"
