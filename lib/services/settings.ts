@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password"
 import { prisma } from "@/lib/db"
 import { normalizeCurrencyCode } from "@/lib/money"
 import { writeAuditLog } from "@/lib/services/audit"
+import { APP_TIMEZONE, appDayRangeFromCalendarDate } from "@/lib/time"
 import type {
   ChangePasswordInput,
   CreateCategoryInput,
@@ -84,7 +85,7 @@ export async function getSettingsProfile(userId: string): Promise<SettingsProfil
     email: user.email,
     name: user.name,
     preferredCurrency: user.preferredCurrency,
-    timezone: user.timezone,
+    timezone: APP_TIMEZONE,
     dateFormat: user.dateFormat,
     numberFormat: user.numberFormat,
     defaultIncomeAccountId: user.defaultIncomeAccountId,
@@ -114,7 +115,8 @@ export async function updatePreferences(
       where: { id: userId },
       data: {
         preferredCurrency: normalizeCurrencyCode(input.preferredCurrency),
-        timezone: input.timezone.trim(),
+        // App-wide reporting zone is enforced; preference UI is informational.
+        timezone: APP_TIMEZONE,
         dateFormat: input.dateFormat,
         numberFormat: input.numberFormat,
         defaultIncomeAccountId: incomeId,
@@ -137,7 +139,7 @@ export async function updatePreferences(
       email: updated.email,
       name: updated.name,
       preferredCurrency: updated.preferredCurrency,
-      timezone: updated.timezone,
+      timezone: APP_TIMEZONE,
       dateFormat: updated.dateFormat,
       numberFormat: updated.numberFormat,
       defaultIncomeAccountId: updated.defaultIncomeAccountId,
@@ -433,10 +435,8 @@ export async function exportTransactionsCsv(
   userId: string,
   input: ExportTransactionsInput
 ): Promise<string> {
-  const from = new Date(input.from)
-  from.setHours(0, 0, 0, 0)
-  const to = new Date(input.to)
-  to.setHours(23, 59, 59, 999)
+  const from = appDayRangeFromCalendarDate(input.from).start
+  const to = appDayRangeFromCalendarDate(input.to).end
 
   const rows = await prisma.transaction.findMany({
     where: {

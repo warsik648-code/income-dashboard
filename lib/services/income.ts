@@ -1,6 +1,7 @@
 import type { PaymentMethod, Transaction } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
+import { parseAppDateTimeLocal } from "@/lib/time"
 import {
   buildFxSnapshot,
   isSameFrozenFx,
@@ -74,7 +75,7 @@ export async function createIncome(
   userId: string,
   input: CreateIncomeInput
 ): Promise<Transaction> {
-  const transactionDate = new Date(input.transactionDate)
+  const transactionDate = parseAppDateTimeLocal(input.transactionDate)
 
   return prisma.$transaction(async (tx) => {
     let account
@@ -224,7 +225,7 @@ export async function updateIncome(
         exchangeRateSource: preserveFx
           ? existing.exchangeRateSource
           : fx.exchangeRateSource,
-        transactionDate: new Date(input.transactionDate),
+        transactionDate: parseAppDateTimeLocal(input.transactionDate),
         description: input.description.trim(),
         counterparty: emptyToNull(input.counterparty),
         notes: emptyToNull(input.notes),

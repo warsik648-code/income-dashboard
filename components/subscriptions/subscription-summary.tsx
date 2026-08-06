@@ -1,4 +1,5 @@
 import { SensitiveValue } from "@/components/streamer-mode"
+import { formatAppCalendarDate } from "@/lib/time"
 type SubscriptionSummaryProps = {
   activeCount: number
   dueCount: number
@@ -20,11 +21,10 @@ type SubscriptionSummaryProps = {
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+  return formatAppCalendarDate(value, {
     year: "numeric",
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
   })
 }
 

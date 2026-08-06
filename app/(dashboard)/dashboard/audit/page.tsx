@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { listAuditLogs } from "@/lib/services/audit-query"
+import { formatAppDateTime } from "@/lib/time"
 
 export default async function AuditPage() {
   const session = await auth()
@@ -57,7 +58,7 @@ export default async function AuditPage() {
                     ) : null}
                   </div>
                   <div className="shrink-0 text-right text-xs text-muted-foreground">
-                    <p>{log.createdAt.toLocaleString()}</p>
+                    <p>{formatAppDateTime(log.createdAt)}</p>
                     {log.ipAddress ? <p>IP {log.ipAddress}</p> : null}
                   </div>
                 </li>

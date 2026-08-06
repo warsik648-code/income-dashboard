@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { DashboardActivityItem } from "@/lib/services/dashboard"
+import { formatAppDateTime } from "@/lib/time"
 
 export function DashboardActivity({
   items,
@@ -90,7 +91,7 @@ export function DashboardActivity({
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {item.accountName} ·{" "}
-                    {new Date(item.transactionDate).toLocaleString()}
+                    {formatAppDateTime(item.transactionDate)}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

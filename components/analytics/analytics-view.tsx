@@ -4,6 +4,7 @@ import { AnalyticsSummaryCards } from "@/components/analytics/analytics-summary"
 import { AnalyticsTables } from "@/components/analytics/analytics-tables"
 import { PageHeader } from "@/components/layout/page-header"
 import type { AnalyticsResult } from "@/lib/services/analytics"
+import { formatAppDate } from "@/lib/time"
 
 type Option = { id: string; name: string }
 
@@ -28,8 +29,8 @@ export function AnalyticsView({
   }
   data: AnalyticsResult
 }) {
-  const fromLabel = new Date(data.range.from).toLocaleDateString()
-  const toLabel = new Date(data.range.to).toLocaleDateString()
+  const fromLabel = formatAppDate(data.range.from)
+  const toLabel = formatAppDate(data.range.to)
 
   return (
     <section className="space-y-8">

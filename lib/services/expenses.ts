@@ -5,6 +5,7 @@ import {
 } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
+import { appDayRangeFromCalendarDate, parseAppDateTimeLocal } from "@/lib/time"
 import {
   buildFxSnapshot,
   isSameFrozenFx,
@@ -143,8 +144,12 @@ export async function listExpenses(
   filters: ExpenseFilters = {}
 ): Promise<ExpenseListItem[]> {
   const includeDeleted = filters.deleted === "1"
-  const from = filters.from ? new Date(filters.from) : undefined
-  const to = filters.to ? new Date(filters.to) : undefined
+  const from = filters.from
+    ? appDayRangeFromCalendarDate(filters.from).start
+    : undefined
+  const to = filters.to
+    ? appDayRangeFromCalendarDate(filters.to).end
+    : undefined
 
   return prisma.transaction.findMany({
     where: {
@@ -160,8 +165,8 @@ export async function listExpenses(
       ...(from || to
         ? {
             transactionDate: {
-              ...(from && !Number.isNaN(from.getTime()) ? { gte: from } : {}),
-              ...(to && !Number.isNaN(to.getTime()) ? { lte: to } : {}),
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
             },
           }
         : {}),
@@ -223,7 +228,7 @@ export async function createExpense(
         baseAmountUsd: fx.baseAmountUsd,
         exchangeRateAt: fx.exchangeRateAt,
         exchangeRateSource: fx.exchangeRateSource,
-        transactionDate: new Date(input.transactionDate),
+        transactionDate: parseAppDateTimeLocal(input.transactionDate),
         description: resolveExpenseDescription(input.description, category.name),
         counterparty: emptyToNull(input.counterparty),
         notes: emptyToNull(input.notes),
@@ -334,7 +339,7 @@ export async function updateExpense(
         exchangeRateSource: preserveFx
           ? existing.exchangeRateSource
           : fx.exchangeRateSource,
-        transactionDate: new Date(input.transactionDate),
+        transactionDate: parseAppDateTimeLocal(input.transactionDate),
         description: resolveExpenseDescription(input.description, category.name),
         counterparty: emptyToNull(input.counterparty),
         notes: emptyToNull(input.notes),

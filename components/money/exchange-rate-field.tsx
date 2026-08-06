@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { formatAppDateTime } from "@/lib/time"
 
 type RateMode = "fixed_usd" | "suggested" | "manual" | "saved"
 
@@ -342,7 +343,7 @@ export function ExchangeRateField({
               <div className="sm:col-span-2">
                 <dt className="inline text-muted-foreground">Provider update: </dt>
                 <dd className="inline text-foreground">
-                  {new Date(payload.providerUpdatedAt).toLocaleString()}
+                  {formatAppDateTime(payload.providerUpdatedAt)}
                   {payload.isStale ? " (stale cache)" : ""}
                 </dd>
               </div>

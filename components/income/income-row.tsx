@@ -10,6 +10,7 @@ import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
 import { EditIncomeDialog } from "@/components/income/edit-income-dialog"
 import type { IncomeAccountOption } from "@/components/income/income-form-fields"
 import { SensitiveValue } from "@/components/streamer-mode"
+import { formatAppDateTime } from "@/lib/time"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -52,7 +53,7 @@ export function IncomeRow({ accounts, entry }: IncomeRowProps) {
     softDeleteIncomeAction,
     initialState
   )
-  const when = new Date(entry.transactionDate).toLocaleString()
+  const when = formatAppDateTime(entry.transactionDate)
   const isLinked = Boolean(entry.debtId || entry.subscriptionId)
 
   return (

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatAppDateTimeLocal } from "@/lib/time"
 
 export type TransferAccountOption = {
   id: string
@@ -33,8 +34,7 @@ export type TransferAccountOption = {
 const initialState: TransferActionState = {}
 
 function toDateTimeLocalValue(date = new Date()) {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatAppDateTimeLocal(date)
 }
 
 function rateFor(currency: string, payload: ExchangeRatesResult | null) {

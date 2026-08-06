@@ -17,6 +17,7 @@ import { ExchangeRateField } from "@/components/money/exchange-rate-field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatAppDateTimeLocal, isValidDateTimeLocal } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
 export type ExpenseAccountOption = {
@@ -51,9 +52,7 @@ const PAYMENT_METHODS = [
 ] as const
 
 export function toExpenseDateTimeLocalValue(value: Date | string = new Date()) {
-  const date = typeof value === "string" ? new Date(value) : value
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatAppDateTimeLocal(value)
 }
 
 function initialCategoryId(
@@ -172,7 +171,7 @@ export const ExpenseFormFields = forwardRef<
       }
       if (!transactionDate.trim()) {
         next.transactionDate = "Date and time are required."
-      } else if (Number.isNaN(new Date(transactionDate).getTime())) {
+      } else if (!isValidDateTimeLocal(transactionDate)) {
         next.transactionDate = "Enter a valid date and time."
       }
       const currency = selected?.currency ?? "USD"

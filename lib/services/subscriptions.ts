@@ -12,6 +12,7 @@ import {
   monthlyEquivalent,
   renewalPeriodKey,
 } from "@/lib/money/billing"
+import { parseAppDateTimeLocal, parseCalendarDate } from "@/lib/time"
 import {
   getSubscriptionDisplayState,
   isSubscriptionDue,
@@ -68,17 +69,27 @@ function emptyToNull(value?: string | null) {
   return trimmed ? trimmed : null
 }
 
-function parseDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
+function parseCalendarField(value: string) {
+  try {
+    return parseCalendarDate(value)
+  } catch {
     throw new SubscriptionServiceError("Invalid date.")
   }
-  return date
 }
 
-function parseOptionalDate(value?: string | null) {
+function parseOptionalCalendarField(value?: string | null) {
   if (!value?.trim()) return null
-  return parseDate(value)
+  return parseCalendarField(value)
+}
+
+function parsePaymentInstant(value: string) {
+  try {
+    // datetime-local from confirm-paid → Europe/Istanbul wall time
+    if (value.includes("T")) return parseAppDateTimeLocal(value)
+    return parseCalendarDate(value)
+  } catch {
+    throw new SubscriptionServiceError("Invalid date.")
+  }
 }
 
 function parseCustomDays(frequency: string, raw?: string | null) {
@@ -234,9 +245,9 @@ export async function createSubscription(
           input.billingFrequency,
           input.customIntervalDays
         ),
-        startDate: parseDate(input.startDate),
-        nextRenewalDate: parseDate(input.nextRenewalDate),
-        endDate: parseOptionalDate(input.endDate),
+        startDate: parseCalendarField(input.startDate),
+        nextRenewalDate: parseCalendarField(input.nextRenewalDate),
+        endDate: parseOptionalCalendarField(input.endDate),
         accountId: account.id,
         categoryId: emptyToNull(input.categoryId),
         paymentMethod: emptyToNull(input.paymentMethod) as PaymentMethod | null,
@@ -289,9 +300,9 @@ export async function updateSubscription(
           input.billingFrequency,
           input.customIntervalDays
         ),
-        startDate: parseDate(input.startDate),
-        nextRenewalDate: parseDate(input.nextRenewalDate),
-        endDate: parseOptionalDate(input.endDate),
+        startDate: parseCalendarField(input.startDate),
+        nextRenewalDate: parseCalendarField(input.nextRenewalDate),
+        endDate: parseOptionalCalendarField(input.endDate),
         accountId: account.id,
         categoryId: emptyToNull(input.categoryId),
         paymentMethod: emptyToNull(input.paymentMethod) as PaymentMethod | null,
@@ -530,7 +541,7 @@ export async function confirmRenewalPayment(
     }
 
     const paymentDate = input.paymentDate?.trim()
-      ? parseDate(input.paymentDate)
+      ? parsePaymentInstant(input.paymentDate)
       : new Date()
 
     let expense

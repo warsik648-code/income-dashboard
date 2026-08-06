@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { TransferListItem } from "@/lib/services/transfers"
+import { formatAppDateTime } from "@/lib/time"
 
 const initialState: TransferActionState = {}
 
@@ -60,7 +61,7 @@ export function TransferRow({ entry }: { entry: TransferListItem }) {
               {entry.feeCurrency ?? entry.sourceCurrency}
             </SensitiveValue>
             {entry.feePaidSeparately ? " (separate)" : ""} · {entry.status} ·{" "}
-            {new Date(entry.transferredAt).toLocaleString()}
+            {formatAppDateTime(entry.transferredAt)}
           </p>
         </div>
         <span className="rounded-md border border-border/70 px-2 py-1 text-xs">

@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { isValidDateTimeLocal } from "@/lib/time"
 import { supportedCurrencySchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
@@ -48,7 +49,7 @@ export const createTransferSchema = z
         message: "Source and destination accounts must be different",
       })
     }
-    if (Number.isNaN(new Date(data.transferredAt).getTime())) {
+    if (!isValidDateTimeLocal(data.transferredAt)) {
       ctx.addIssue({
         code: "custom",
         path: ["transferredAt"],

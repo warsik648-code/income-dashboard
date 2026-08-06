@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { isSafeHttpsLogoUrl } from "@/lib/subscriptions/logo-url"
+import { isValidCalendarDate } from "@/lib/time"
 import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
@@ -72,7 +73,7 @@ const baseSubscriptionSchema = z
     for (const key of ["startDate", "nextRenewalDate", "endDate"] as const) {
       const raw = data[key]
       if (!raw) continue
-      if (Number.isNaN(new Date(raw).getTime())) {
+      if (!isValidCalendarDate(raw)) {
         ctx.addIssue({
           code: "custom",
           path: [key],

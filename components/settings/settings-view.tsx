@@ -16,12 +16,19 @@ import {
   useStreamerModeOptional,
 } from "@/components/streamer-mode"
 import {
-  COMMON_TIMEZONES,
   DATE_FORMATS,
   NUMBER_FORMATS,
 } from "@/lib/validations/settings"
 import { EXCHANGE_RATE_ATTRIBUTION } from "@/lib/exchange-rates/types"
 import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
+import {
+  APP_TIMEZONE,
+  formatAppDate,
+  formatAppDateTime,
+  istanbulDateKey,
+  istanbulTodayKey,
+  startOfAppMonth,
+} from "@/lib/time"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -95,11 +102,8 @@ export function SettingsView({
 
   const incomeCategories = categories.filter((c) => c.kind === "INCOME")
   const expenseCategories = categories.filter((c) => c.kind === "EXPENSE")
-  const today = new Date()
-  const defaultTo = today.toISOString().slice(0, 10)
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10)
+  const defaultTo = istanbulTodayKey()
+  const monthStart = istanbulDateKey(startOfAppMonth())
 
   return (
     <section className="space-y-8">
@@ -127,7 +131,7 @@ export function SettingsView({
             ) : null}
             <div>
               <p className="text-xs text-muted-foreground">Member since</p>
-              <p>{new Date(profile.createdAt).toLocaleDateString()}</p>
+              <p>{formatAppDate(profile.createdAt)}</p>
             </div>
           </CardContent>
         </Card>
@@ -231,19 +235,17 @@ export function SettingsView({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="timezone">Timezone</Label>
-              <select
+              <input type="hidden" name="timezone" value={APP_TIMEZONE} />
+              <Input
                 id="timezone"
-                name="timezone"
-                defaultValue={profile.timezone}
-                disabled={prefPending}
-                className="h-8 rounded-md border border-input bg-input/20 px-2 text-sm"
-              >
-                {COMMON_TIMEZONES.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </select>
+                value={APP_TIMEZONE}
+                disabled
+                readOnly
+                className="bg-muted/40"
+              />
+              <p className="text-xs text-muted-foreground">
+                App-wide reporting and display zone (enforced).
+              </p>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="dateFormat">Date format</Label>
@@ -456,7 +458,7 @@ export function SettingsView({
               <p className="text-xs text-muted-foreground">Last login</p>
               <p>
                 {profile.lastLoginAt
-                  ? new Date(profile.lastLoginAt).toLocaleString()
+                  ? formatAppDateTime(profile.lastLoginAt)
                   : "Not recorded yet"}
               </p>
             </div>

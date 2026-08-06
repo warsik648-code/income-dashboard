@@ -8,6 +8,7 @@ import { SensitiveAmountInput } from "@/components/streamer-mode"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatCalendarDate } from "@/lib/time"
 
 export type DebtAccountOption = {
   id: string
@@ -18,10 +19,11 @@ export type DebtAccountOption = {
 
 function toDateInputValue(value?: string | Date | null) {
   if (!value) return ""
-  const date = typeof value === "string" ? new Date(value) : value
-  if (Number.isNaN(date.getTime())) return ""
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
+  try {
+    return formatCalendarDate(value)
+  } catch {
+    return ""
+  }
 }
 
 export type DebtFormDefaults = {

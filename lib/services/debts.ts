@@ -13,6 +13,7 @@ import {
   normalizeCurrencyCode,
   type MoneyDecimalString,
 } from "@/lib/money"
+import { parseAppDateTimeLocal, parseCalendarDate } from "@/lib/time"
 import { resolveExchangeRateSource } from "@/lib/money/fx-source"
 import { writeAuditLog } from "@/lib/services/audit"
 import {
@@ -61,11 +62,20 @@ function emptyToNull(value?: string | null) {
 
 function parseOptionalDate(value?: string | null) {
   if (!value?.trim()) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
+  try {
+    return parseCalendarDate(value)
+  } catch {
     throw new DebtServiceError("Invalid date.")
   }
-  return date
+}
+
+function parsePaymentInstant(value: string) {
+  try {
+    if (value.includes("T")) return parseAppDateTimeLocal(value)
+    return parseCalendarDate(value)
+  } catch {
+    throw new DebtServiceError("Invalid date.")
+  }
 }
 
 function statusFromAmounts(
@@ -483,7 +493,7 @@ export async function recordDebtPayment(
             baseAmountUsd: paymentFx.baseAmountUsd,
             exchangeRateAt: paymentFx.exchangeRateAt,
             exchangeRateSource: paymentFx.exchangeRateSource,
-            transactionDate: new Date(input.paymentDate),
+            transactionDate: parsePaymentInstant(input.paymentDate),
             description: `Debt payment to ${debt.personName}`,
             counterparty: debt.personName,
             paymentMethod: "OTHER" as PaymentMethod,
@@ -530,7 +540,7 @@ export async function recordDebtPayment(
             baseAmountUsd: paymentFx.baseAmountUsd,
             exchangeRateAt: paymentFx.exchangeRateAt,
             exchangeRateSource: paymentFx.exchangeRateSource,
-            transactionDate: new Date(input.paymentDate),
+            transactionDate: parsePaymentInstant(input.paymentDate),
             description: `Debt repayment from ${debt.personName}`,
             counterparty: debt.personName,
             paymentMethod: "OTHER" as PaymentMethod,
@@ -575,7 +585,7 @@ export async function recordDebtPayment(
         baseAmountUsd: paymentFx.baseAmountUsd,
         exchangeRateAt: paymentFx.exchangeRateAt,
         exchangeRateSource: paymentFx.exchangeRateSource,
-        paymentDate: new Date(input.paymentDate),
+        paymentDate: parsePaymentInstant(input.paymentDate),
         notes: emptyToNull(input.notes),
         transactionId,
       },

@@ -20,6 +20,7 @@ import type {
 } from "@/components/subscriptions/subscription-form-fields"
 import { SubscriptionLogo } from "@/components/subscriptions/subscription-logo"
 import { Badge } from "@/components/ui/badge"
+import { formatAppCalendarDate } from "@/lib/time"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -63,11 +64,10 @@ export type SubscriptionRowData = {
 const initialState: SubscriptionActionState = {}
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+  return formatAppCalendarDate(value, {
     year: "numeric",
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
   })
 }
 

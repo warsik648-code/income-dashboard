@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import type { AnalyticsResult } from "@/lib/services/analytics"
 import { SensitiveValue } from "@/components/streamer-mode"
+import { formatAppDate } from "@/lib/time"
 
 function EmptyRow({ label }: { label: string }) {
   return (
@@ -114,7 +115,7 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {row.accountName} · ≈ <SensitiveValue>{formatUsd(row.amountUsd)}</SensitiveValue> ·{" "}
-                    {new Date(row.transactionDate).toLocaleDateString()}
+                    {formatAppDate(row.transactionDate)}
                   </p>
                 </li>
               ))}
@@ -144,7 +145,7 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {row.accountName} · ≈ <SensitiveValue>{formatUsd(row.amountUsd)}</SensitiveValue> ·{" "}
-                    {new Date(row.transactionDate).toLocaleDateString()}
+                    {formatAppDate(row.transactionDate)}
                   </p>
                 </li>
               ))}

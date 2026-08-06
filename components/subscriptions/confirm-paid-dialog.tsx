@@ -21,12 +21,12 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { formatAppDateTimeLocal } from "@/lib/time"
 
 const initialState: SubscriptionActionState = {}
 
 function toDateTimeLocalValue(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatAppDateTimeLocal(date)
 }
 
 export function ConfirmPaidDialog({

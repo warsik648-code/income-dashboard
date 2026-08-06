@@ -1,6 +1,18 @@
 import { Prisma, type TransactionType } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
+import {
+  addAppCalendarDays,
+  appDayRangeFromCalendarDate,
+  appPeriodKey,
+  endOfAppDayMs,
+  formatAppCalendarDate,
+  startOfAppDay,
+  startOfAppMonth,
+  startOfAppWeek,
+  startOfAppYear,
+  zonedWallTimeToUtc,
+} from "@/lib/time"
 import type {
   AnalyticsFilters,
   AnalyticsPreset,
@@ -96,35 +108,7 @@ type AnalyticsTxn = {
   category: { id: string; name: string; kind: TransactionType } | null
 }
 
-function startOfLocalDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
-}
-
-function endOfLocalDay(date: Date) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999
-  )
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date)
-  next.setDate(next.getDate() + days)
-  return next
-}
-
-/** Monday-start week in local time. */
-function startOfWeek(date: Date) {
-  const day = date.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  return startOfLocalDay(addDays(date, diff))
-}
-
+/** All analytics ranges use Europe/Istanbul civil days, returned as UTC instants. */
 function resolveRange(filters: AnalyticsFilters): {
   from: Date
   to: Date
@@ -135,45 +119,45 @@ function resolveRange(filters: AnalyticsFilters): {
 
   switch (preset) {
     case "today":
-      return { preset, from: startOfLocalDay(now), to: endOfLocalDay(now) }
+      return { preset, from: startOfAppDay(now), to: endOfAppDayMs(now) }
     case "this_week":
-      return { preset, from: startOfWeek(now), to: endOfLocalDay(now) }
+      return { preset, from: startOfAppWeek(now), to: endOfAppDayMs(now) }
     case "this_month":
       return {
         preset,
-        from: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
-        to: endOfLocalDay(now),
+        from: startOfAppMonth(now),
+        to: endOfAppDayMs(now),
       }
     case "last_30_days":
       return {
         preset,
-        from: startOfLocalDay(addDays(now, -29)),
-        to: endOfLocalDay(now),
+        from: startOfAppDay(addAppCalendarDays(now, -29)),
+        to: endOfAppDayMs(now),
       }
     case "this_year":
       return {
         preset,
-        from: new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0),
-        to: endOfLocalDay(now),
+        from: startOfAppYear(now),
+        to: endOfAppDayMs(now),
       }
     case "custom": {
-      const from = startOfLocalDay(new Date(filters.from!))
-      const to = endOfLocalDay(new Date(filters.to!))
-      return { preset, from, to }
+      const fromRange = appDayRangeFromCalendarDate(filters.from!)
+      const toRange = appDayRangeFromCalendarDate(filters.to!)
+      return { preset, from: fromRange.start, to: toRange.end }
     }
     default:
       return {
         preset: "this_month",
-        from: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
-        to: endOfLocalDay(now),
+        from: startOfAppMonth(now),
+        to: endOfAppDayMs(now),
       }
   }
 }
 
 function dayCountInclusive(from: Date, to: Date) {
-  const start = startOfLocalDay(from).getTime()
-  const end = startOfLocalDay(to).getTime()
-  return Math.max(1, Math.floor((end - start) / 86_400_000) + 1)
+  const start = startOfAppDay(from).getTime()
+  const end = startOfAppDay(to).getTime()
+  return Math.max(1, Math.round((end - start) / 86_400_000) + 1)
 }
 
 function chooseBucket(from: Date, to: Date): "day" | "month" {
@@ -181,24 +165,20 @@ function chooseBucket(from: Date, to: Date): "day" | "month" {
 }
 
 function periodKey(date: Date, bucket: "day" | "month") {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  if (bucket === "month") return `${y}-${m}`
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
+  return appPeriodKey(date, bucket)
 }
 
 function periodLabel(key: string, bucket: "day" | "month") {
   if (bucket === "month") {
     const [y, m] = key.split("-")
-    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(undefined, {
-      month: "short",
-      year: "numeric",
-    })
+    return formatAppCalendarDate(
+      new Date(Date.UTC(Number(y), Number(m) - 1, 1)),
+      { month: "short", year: "numeric" }
+    )
   }
   const [y, m, d] = key.split("-")
-  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString(
-    undefined,
+  return formatAppCalendarDate(
+    new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))),
     { month: "short", day: "numeric" }
   )
 }
@@ -206,20 +186,31 @@ function periodLabel(key: string, bucket: "day" | "month") {
 function enumeratePeriods(from: Date, to: Date, bucket: "day" | "month") {
   const keys: string[] = []
   if (bucket === "month") {
-    let cursor = new Date(from.getFullYear(), from.getMonth(), 1)
-    const end = new Date(to.getFullYear(), to.getMonth(), 1)
+    let cursor = startOfAppMonth(from)
+    const end = startOfAppMonth(to)
     while (cursor.getTime() <= end.getTime()) {
       keys.push(periodKey(cursor, "month"))
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+      const key = appPeriodKey(cursor, "month")
+      const [y, m] = key.split("-").map(Number)
+      const nextMonth = m === 12 ? 1 : m! + 1
+      const nextYear = m === 12 ? y! + 1 : y!
+      cursor = zonedWallTimeToUtc({
+        year: nextYear,
+        month: nextMonth,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+      })
     }
     return keys
   }
 
-  let cursor = startOfLocalDay(from)
-  const end = startOfLocalDay(to)
+  let cursor = startOfAppDay(from)
+  const end = startOfAppDay(to)
   while (cursor.getTime() <= end.getTime()) {
     keys.push(periodKey(cursor, "day"))
-    cursor = addDays(cursor, 1)
+    cursor = startOfAppDay(addAppCalendarDays(cursor, 1))
   }
   return keys
 }

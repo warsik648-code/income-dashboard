@@ -1,37 +1,33 @@
 import type { SubscriptionStatus } from "@/generated/prisma/client"
 
+import { calendarDateKey, istanbulTodayKey } from "@/lib/time"
+
 export type SubscriptionDueInput = {
   status: SubscriptionStatus
   nextRenewalDate: Date
   endDate?: Date | null
   deletedAt?: Date | null
-  /** Defaults to UTC start of today when omitted. */
+  /** Defaults to "now"; due compares civil dates in Europe/Istanbul. */
   asOf?: Date
-}
-
-function startOfUtcDay(date: Date): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-  )
 }
 
 /**
  * Computed "Due" label — not a stored enum.
- * Due when active/trial, not deleted, renewal date on/before today, and not ended.
+ * Due when active/trial, not deleted, renewal civil date on/before Istanbul today,
+ * and not ended on/before Istanbul today.
  */
 export function isSubscriptionDue(input: SubscriptionDueInput): boolean {
   if (input.deletedAt) return false
   if (input.status !== "ACTIVE" && input.status !== "TRIAL") return false
 
   const asOf = input.asOf ?? new Date()
-  if (input.endDate && input.endDate.getTime() <= asOf.getTime()) {
+  const today = istanbulTodayKey(asOf)
+
+  if (input.endDate && calendarDateKey(input.endDate) <= today) {
     return false
   }
 
-  return (
-    startOfUtcDay(input.nextRenewalDate).getTime() <=
-    startOfUtcDay(asOf).getTime()
-  )
+  return calendarDateKey(input.nextRenewalDate) <= today
 }
 
 export type SubscriptionDisplayState =

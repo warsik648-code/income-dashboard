@@ -14,6 +14,7 @@ import type {
   ExpenseCategoryOption,
 } from "@/components/expenses/expense-form-fields"
 import { SensitiveValue } from "@/components/streamer-mode"
+import { formatAppDateTime } from "@/lib/time"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -113,7 +114,7 @@ export function ExpenseRow({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          {new Date(entry.transactionDate).toLocaleString()}
+          {formatAppDateTime(entry.transactionDate)}
         </p>
         {entry.counterparty ? (
           <p className="text-sm text-muted-foreground">

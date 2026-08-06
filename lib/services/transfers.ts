@@ -5,6 +5,7 @@ import {
 } from "@/generated/prisma/client"
 
 import { prisma } from "@/lib/db"
+import { parseAppDateTimeLocal } from "@/lib/time"
 import {
   assertSupportedCurrency,
   buildFxSnapshot,
@@ -370,7 +371,7 @@ export async function createTransfer(
   userId: string,
   input: CreateTransferInput
 ): Promise<CreateTransferResult> {
-  const transferredAt = new Date(input.transferredAt)
+  const transferredAt = parseAppDateTimeLocal(input.transferredAt)
   const status = input.status as TransferStatus
   const idempotencyKey = emptyToNull(input.idempotencyKey)
 
@@ -532,7 +533,7 @@ export async function updatePendingTransfer(
 
     const parts = buildSnapshots(input, from.currency, to.currency)
     const status = input.status as TransferStatus
-    const transferredAt = new Date(input.transferredAt)
+    const transferredAt = parseAppDateTimeLocal(input.transferredAt)
 
     if (status === "COMPLETED") {
       const required = parts.feePaidSeparately

@@ -13,6 +13,7 @@ import { EditDebtDialog } from "@/components/debts/edit-debt-dialog"
 import { RecordPaymentDialog } from "@/components/debts/record-payment-dialog"
 import type { DebtAccountOption } from "@/components/debts/debt-form-fields"
 import { Badge } from "@/components/ui/badge"
+import { formatAppCalendarDate, formatAppDateTime } from "@/lib/time"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -56,7 +57,7 @@ export type DebtRowData = {
 const initialState: DebtActionState = {}
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+  return formatAppCalendarDate(value, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -135,7 +136,7 @@ export function DebtRow({
               {entry.paidAmount} {entry.currency}
             </SensitiveValue>
           </p>
-          <p>Created: {formatDate(entry.createdAt)}</p>
+          <p>Created: {formatAppDateTime(entry.createdAt)}</p>
           {entry.dueDate ? <p>Due: {formatDate(entry.dueDate)}</p> : null}
         </div>
 
@@ -158,7 +159,7 @@ export function DebtRow({
                       {payment.amount} {payment.currency}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {formatDate(payment.paymentDate)}
+                      {formatAppDateTime(payment.paymentDate)}
                       {payment.transactionId ? " · linked txn" : ""}
                     </span>
                   </div>

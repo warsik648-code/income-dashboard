@@ -13,12 +13,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { DashboardResult } from "@/lib/services/dashboard"
+import { formatAppCalendarDate } from "@/lib/time"
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, {
+  return formatAppCalendarDate(value, {
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
   })
 }
 

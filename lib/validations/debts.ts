@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { isValidCalendarDate, isValidDateTimeLocal } from "@/lib/time"
 import {
   optionalCurrencyFilterSchema,
   supportedCurrencySchema,
@@ -27,7 +28,7 @@ const baseDebtSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.dueDate) {
-      if (Number.isNaN(new Date(data.dueDate).getTime())) {
+      if (!isValidCalendarDate(data.dueDate)) {
         ctx.addIssue({
           code: "custom",
           path: ["dueDate"],
@@ -76,7 +77,10 @@ export const recordDebtPaymentSchema = z
       .transform((v) => v === true || v === "true"),
   })
   .superRefine((data, ctx) => {
-    if (Number.isNaN(new Date(data.paymentDate).getTime())) {
+    if (
+      !isValidDateTimeLocal(data.paymentDate) &&
+      !isValidCalendarDate(data.paymentDate)
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["paymentDate"],

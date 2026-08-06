@@ -23,12 +23,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatAppDateTimeLocal } from "@/lib/time"
 
 const initialState: DebtActionState = {}
 
 function toDateTimeLocalValue(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatAppDateTimeLocal(date)
 }
 
 export function RecordPaymentDialog({

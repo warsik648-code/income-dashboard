@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { isValidDateTimeLocal } from "@/lib/time"
 import { optionalCurrencyFilterSchema } from "@/lib/validations/currency"
 import { positiveDecimalString } from "@/lib/validations/decimal"
 
@@ -48,8 +49,7 @@ const baseExpenseSchema = z
       .transform((v) => v === true || v === "true"),
   })
   .superRefine((data, ctx) => {
-    const date = new Date(data.transactionDate)
-    if (Number.isNaN(date.getTime())) {
+    if (!isValidDateTimeLocal(data.transactionDate)) {
       ctx.addIssue({
         code: "custom",
         path: ["transactionDate"],

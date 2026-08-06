@@ -18,6 +18,7 @@ import {
   type AttachmentActionState,
 } from "@/app/(dashboard)/dashboard/attachments/actions"
 import type { AttachmentListItem } from "@/lib/services/attachments"
+import { formatAppDateTime } from "@/lib/time"
 import {
   ALLOWED_ATTACHMENT_EXTENSIONS,
   MAX_ATTACHMENT_BYTES,
@@ -248,7 +249,7 @@ export function AttachmentsPanel({
                 <SensitiveValue as="p" className="truncate text-sm font-medium">{item.fileName}</SensitiveValue>
                 <p className="text-xs text-muted-foreground">
                   {item.mimeType} · {formatBytes(item.sizeBytes)} ·{" "}
-                  {new Date(item.createdAt).toLocaleString()}
+                  {formatAppDateTime(item.createdAt)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5">

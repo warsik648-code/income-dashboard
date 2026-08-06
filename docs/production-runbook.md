@@ -45,6 +45,21 @@ pnpm test:integration
 
 Do **not** run integration tests against production or the primary app database.
 
+## Time zone policy (Europe/Istanbul)
+
+Application reporting and display use **Europe/Istanbul**. Absolute instants are still stored in Postgres as Prisma `DateTime` → **`TIMESTAMP(3)` without time zone** (not `timestamptz`).
+
+| Layer | Behavior |
+|-------|----------|
+| Storage | Naive `TIMESTAMP(3)`; Prisma writes UTC components |
+| Parsing (`datetime-local`) | Wall time interpreted as Europe/Istanbul → UTC instant |
+| Calendar-only dates | Selected `YYYY-MM-DD` preserved (UTC midnight of that civil date) |
+| Display / “today” / charts / filters | Europe/Istanbul boundaries and formatting |
+
+A future migration to `timestamptz` is **deferred**. Do not change column types until you have a production backup, a dry-run before/after report on a copy of the data, and explicit approval. Blind `TIMESTAMP` → `timestamptz` can shift real-world meaning.
+
+See also: known integration-test flake notes in `docs/expenses-concurrency-flake.md` (unrelated to timezone parsing).
+
 ## Soft-delete / ledger policy
 
 - Soft-deleting a **Subscription** or **Debt** archives the parent record only.
