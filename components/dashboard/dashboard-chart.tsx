@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import {
   Bar,
   BarChart,
@@ -18,9 +19,10 @@ import {
   toChartNumber,
 } from "@/components/analytics/format"
 import {
+  STREAMER_CHART_TICK_STYLE,
   SensitiveChart,
+  useStreamerAxisTickFormatter,
   useStreamerTooltipFormatter,
-  useStreamerYTickFormatter,
 } from "@/components/streamer-mode"
 
 export function DashboardChart({
@@ -40,10 +42,12 @@ export function DashboardChart({
   const hasData = chartData.some(
     (row) => row.income !== 0 || row.expenses !== 0
   )
-  const yTick = useStreamerYTickFormatter()
-  const tooltipFormat = useStreamerTooltipFormatter((value) =>
-    formatUsd(value)
+  const axisTickFormatter = useStreamerAxisTickFormatter()
+  const formatUsdStable = useCallback(
+    (value: number | string) => formatUsd(value),
+    []
   )
+  const tooltipFormat = useStreamerTooltipFormatter(formatUsdStable)
 
   return (
     <ChartCard
@@ -59,15 +63,11 @@ export function DashboardChart({
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                tick={STREAMER_CHART_TICK_STYLE}
               />
               <YAxis
-                tick={
-                  yTick
-                    ? false
-                    : { fill: "var(--muted-foreground)", fontSize: 11 }
-                }
-                tickFormatter={yTick}
+                tick={STREAMER_CHART_TICK_STYLE}
+                tickFormatter={axisTickFormatter}
               />
               <Tooltip
                 formatter={(value) => tooltipFormat(value as number)}

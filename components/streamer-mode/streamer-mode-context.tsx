@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   useTransition,
   type ReactNode,
@@ -13,21 +14,28 @@ import {
 import { setStreamerModeAction } from "@/app/(dashboard)/dashboard/streamer-mode/actions"
 import {
   STREAMER_MODE_STORAGE_PREFIX,
+  parseStreamerModeStored,
+  serializeStreamerMode,
   streamerModeStorageKey,
 } from "@/lib/streamer-mode/constants"
+import { shouldApplyStreamerModeResult } from "@/lib/streamer-mode/request"
 
 type StreamerModeContextValue = {
   enabled: boolean
   setEnabled: (enabled: boolean) => void
   toggle: () => void
   pending: boolean
+  lastError: string | null
 }
 
 const StreamerModeContext = createContext<StreamerModeContextValue | null>(null)
 
 function writeLocalFallback(userId: string, enabled: boolean) {
   try {
-    localStorage.setItem(streamerModeStorageKey(userId), enabled ? "1" : "0")
+    localStorage.setItem(
+      streamerModeStorageKey(userId),
+      serializeStreamerMode(enabled)
+    )
   } catch {
     // Ignore quota / private mode failures.
   }
@@ -43,15 +51,60 @@ export function StreamerModeProvider({
   initialEnabled: boolean
   children: ReactNode
 }) {
-  // Seed from SSR/DB so the first paint already has data-streamer-mode set.
-  const [enabled, setEnabledState] = useState(initialEnabled)
+  // Initialize once from SSR/DB. Do not reset from props on every render —
+  // that fought optimistic toggles and caused refresh loops after OFF.
+  const [enabled, setEnabledState] = useState(() => initialEnabled === true)
   const [pending, startTransition] = useTransition()
+  const [lastError, setLastError] = useState<string | null>(null)
+  const [inflight, setInflight] = useState(0)
+
+  const requestIdRef = useRef(0)
+  const inflightRef = useRef(0)
+  const enabledRef = useRef(initialEnabled === true)
 
   const persist = useCallback(
-    (next: boolean) => {
+    (next: boolean, previous: boolean) => {
+      const requestId = ++requestIdRef.current
       writeLocalFallback(userId, next)
+      setLastError(null)
+      inflightRef.current += 1
+      setInflight(inflightRef.current)
+
       startTransition(() => {
-        void setStreamerModeAction(next)
+        void setStreamerModeAction({ enabled: next, requestId })
+          .then((result) => {
+            if (
+              !shouldApplyStreamerModeResult({
+                responseRequestId: result.requestId,
+                latestRequestId: requestIdRef.current,
+              })
+            ) {
+              return
+            }
+
+            if (!result.ok) {
+              setEnabledState((current) => {
+                // Only roll back if UI still shows the failed target.
+                if (current !== next) return current
+                enabledRef.current = previous
+                writeLocalFallback(userId, previous)
+                return previous
+              })
+              setLastError(result.error)
+              return
+            }
+
+            // Confirm server boolean (including false) without truthy checks.
+            if (result.enabled === true || result.enabled === false) {
+              enabledRef.current = result.enabled
+              setEnabledState(result.enabled)
+              writeLocalFallback(userId, result.enabled)
+            }
+          })
+          .finally(() => {
+            inflightRef.current = Math.max(0, inflightRef.current - 1)
+            setInflight(inflightRef.current)
+          })
       })
     },
     [userId]
@@ -59,21 +112,25 @@ export function StreamerModeProvider({
 
   const setEnabled = useCallback(
     (next: boolean) => {
-      setEnabledState(next)
-      persist(next)
+      const normalized = next === true
+      const previous = enabledRef.current === true
+      if (normalized === previous) return
+      enabledRef.current = normalized
+      setEnabledState(normalized)
+      persist(normalized, previous)
     },
     [persist]
   )
 
   const toggle = useCallback(() => {
-    setEnabledState((prev) => {
-      const next = !prev
-      persist(next)
-      return next
-    })
+    const previous = enabledRef.current === true
+    const next = !previous
+    enabledRef.current = next
+    setEnabledState(next)
+    persist(next, previous)
   }, [persist])
 
-  // Cmd/Ctrl + Shift + S — ignore while typing in fields.
+  // Cmd/Ctrl + Shift + S — ignore while typing in fields or while a write is in flight.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const meta = event.metaKey || event.ctrlKey
@@ -93,6 +150,7 @@ export function StreamerModeProvider({
       }
 
       event.preventDefault()
+      if (inflightRef.current > 0) return
       toggle()
     }
 
@@ -100,7 +158,7 @@ export function StreamerModeProvider({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [toggle])
 
-  // Keep document attribute in sync for portaled dialogs / charts.
+  // Align document attribute for portaled dialogs. Single source: React state.
   useEffect(() => {
     document.documentElement.dataset.streamerMode = enabled ? "on" : "off"
     return () => {
@@ -108,9 +166,25 @@ export function StreamerModeProvider({
     }
   }, [enabled])
 
+  // One-time localStorage sync: never let a stale "true" overwrite DB false.
+  // SSR/DB is authoritative; rewrite storage to match the seed after mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(streamerModeStorageKey(userId))
+      const stored = parseStreamerModeStored(raw)
+      // If storage claimed ON but DB seed is OFF, keep DB (do not flip client on).
+      void stored
+      writeLocalFallback(userId, initialEnabled === true)
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [userId, initialEnabled])
+
+  const busy = pending || inflight > 0
+
   return (
     <StreamerModeContext.Provider
-      value={{ enabled, setEnabled, toggle, pending }}
+      value={{ enabled, setEnabled, toggle, pending: busy, lastError }}
     >
       <div
         data-streamer-mode={enabled ? "on" : "off"}
@@ -140,6 +214,7 @@ export function useStreamerModeOptional(): StreamerModeContextValue {
       setEnabled: () => {},
       toggle: () => {},
       pending: false,
+      lastError: null,
     }
   )
 }

@@ -6,13 +6,19 @@ export async function getStreamerMode(userId: string): Promise<boolean> {
     where: { id: userId, deletedAt: null },
     select: { streamerMode: true },
   })
-  return Boolean(user?.streamerMode)
+  // Missing user → treat as off (do not throw from layout reads).
+  return user?.streamerMode === true
 }
 
 export async function setStreamerMode(
   userId: string,
   enabled: boolean
 ): Promise<boolean> {
+  // Accept explicit boolean only (including false). Never truthy-check `enabled`.
+  if (enabled !== true && enabled !== false) {
+    throw new Error("streamerMode must be a boolean")
+  }
+
   return prisma.$transaction(async (tx) => {
     const before = await tx.user.findFirst({
       where: { id: userId, deletedAt: null },
@@ -35,9 +41,10 @@ export async function setStreamerMode(
       action: "UPDATE",
       before: { streamerMode: before.streamerMode },
       after: { streamerMode: updated.streamerMode },
-      reason: enabled ? "Streamer Mode enabled" : "Streamer Mode disabled",
+      reason:
+        enabled === true ? "Streamer Mode enabled" : "Streamer Mode disabled",
     })
 
-    return updated.streamerMode
+    return updated.streamerMode === true
   })
 }

@@ -1,17 +1,36 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 
 import { STREAMER_MODE_A11Y_LABEL } from "@/lib/streamer-mode/constants"
+import { formatStreamerAxisTick } from "@/lib/streamer-mode/request"
 import { cn } from "@/lib/utils"
 
 import { useStreamerModeOptional } from "./streamer-mode-context"
 
-/** Y-axis tick formatter that hides amounts when Streamer Mode is on. */
-export function useStreamerYTickFormatter() {
+export { formatStreamerAxisTick }
+
+/** Stable Recharts tick style — never swap `tick={false}` ↔ object (crashes Recharts). */
+export const STREAMER_CHART_TICK_STYLE = {
+  fill: "var(--muted-foreground)",
+  fontSize: 11,
+} as const
+
+/**
+ * Numeric axis tick formatter. Always returns a function so Recharts prop
+ * types stay stable across Streamer Mode ON/OFF transitions.
+ */
+export function useStreamerAxisTickFormatter() {
   const { enabled } = useStreamerModeOptional()
-  if (!enabled) return undefined
-  return () => ""
+  return useMemo(
+    () => (value: string | number) => formatStreamerAxisTick(enabled, value),
+    [enabled]
+  )
+}
+
+/** @deprecated use useStreamerAxisTickFormatter — kept for import compatibility */
+export function useStreamerYTickFormatter() {
+  return useStreamerAxisTickFormatter()
 }
 
 /** Tooltip formatter that never emits raw financial values while streaming. */
@@ -19,11 +38,14 @@ export function useStreamerTooltipFormatter(
   formatValue: (value: number | string) => string
 ) {
   const { enabled } = useStreamerModeOptional()
-  return (value: number | string | undefined) => {
-    if (enabled) return STREAMER_MODE_A11Y_LABEL
-    if (value == null) return ""
-    return formatValue(value)
-  }
+  return useMemo(
+    () => (value: number | string | undefined) => {
+      if (enabled) return STREAMER_MODE_A11Y_LABEL
+      if (value == null) return ""
+      return formatValue(value)
+    },
+    [enabled, formatValue]
+  )
 }
 
 /**

@@ -1,5 +1,7 @@
 "use client"
 
+import { useCallback } from "react"
+
 import {
   Area,
   AreaChart,
@@ -20,9 +22,10 @@ import {
 
 import { ChartCard } from "@/components/analytics/chart-card"
 import {
+  STREAMER_CHART_TICK_STYLE,
   SensitiveChart,
+  useStreamerAxisTickFormatter,
   useStreamerTooltipFormatter,
-  useStreamerYTickFormatter,
 } from "@/components/streamer-mode"
 import {
   CATEGORY_PALETTE,
@@ -33,8 +36,12 @@ import {
 import type { AnalyticsResult } from "@/lib/services/analytics"
 
 export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
-  const yTick = useStreamerYTickFormatter()
-  const tooltipUsd = useStreamerTooltipFormatter((value) => formatUsd(value))
+  const axisTickFormatter = useStreamerAxisTickFormatter()
+  const formatUsdStable = useCallback(
+    (value: number | string) => formatUsd(value),
+    []
+  )
+  const tooltipUsd = useStreamerTooltipFormatter(formatUsdStable)
 
   const flowData = data.incomeVsExpenses.map((row) => ({
     label: row.label,
@@ -84,7 +91,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
             <BarChart data={flowData}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <YAxis tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -117,7 +124,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
             <LineChart data={flowData}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <YAxis tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -228,7 +235,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={spendAcct} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-              <XAxis type="number" tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <XAxis type="number" tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <YAxis
                 type="category"
                 dataKey="name"
@@ -260,7 +267,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeAcct} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-              <XAxis type="number" tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <XAxis type="number" tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <YAxis
                 type="category"
                 dataKey="name"
@@ -293,7 +300,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
             <BarChart data={monthly}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <YAxis tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -326,7 +333,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
             <AreaChart data={savings}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
+              <YAxis tick={STREAMER_CHART_TICK_STYLE} tickFormatter={axisTickFormatter} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{

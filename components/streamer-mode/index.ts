@@ -6,7 +6,10 @@ export {
 export { SensitiveValue, SensitiveText } from "./sensitive-value"
 export { SensitiveAmountInput } from "./sensitive-amount-input"
 export {
+  STREAMER_CHART_TICK_STYLE,
   SensitiveChart,
+  formatStreamerAxisTick,
+  useStreamerAxisTickFormatter,
   useStreamerTooltipFormatter,
   useStreamerYTickFormatter,
 } from "./chart-masking"

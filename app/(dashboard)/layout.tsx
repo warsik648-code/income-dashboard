@@ -20,7 +20,17 @@ export default async function DashboardLayout({
   }
 
   const user = session.user
-  const streamerMode = await getStreamerMode(user.id)
+
+  // Preference read must not crash the shell — default OFF on failure.
+  let streamerMode = false
+  try {
+    streamerMode = await getStreamerMode(user.id)
+  } catch (error) {
+    console.error("[streamer-mode] getStreamerMode failed in layout", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message : "unknown",
+    })
+  }
 
   return (
     <AppShell

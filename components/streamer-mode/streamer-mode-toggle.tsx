@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { useStreamerMode } from "./streamer-mode-context"
 
 export function StreamerModeHeaderToggle({ className }: { className?: string }) {
-  const { enabled, toggle, pending } = useStreamerMode()
+  const { enabled, toggle, pending, lastError } = useStreamerMode()
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -26,7 +26,11 @@ export function StreamerModeHeaderToggle({ className }: { className?: string }) 
         disabled={pending}
         onClick={() => toggle()}
         aria-pressed={enabled}
-        title="Toggle Streamer Mode (⌘/Ctrl+Shift+S)"
+        title={
+          lastError
+            ? lastError
+            : "Toggle Streamer Mode (⌘/Ctrl+Shift+S)"
+        }
         className="gap-1.5"
       >
         {enabled ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -39,7 +43,7 @@ export function StreamerModeHeaderToggle({ className }: { className?: string }) 
 }
 
 export function StreamerModeSidebarControl() {
-  const { enabled, setEnabled, pending } = useStreamerMode()
+  const { enabled, setEnabled, pending, lastError } = useStreamerMode()
 
   return (
     <div className="space-y-2 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/30 p-2.5 group-data-[collapsible=icon]:hidden">
@@ -69,12 +73,17 @@ export function StreamerModeSidebarControl() {
         {enabled ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
         {enabled ? "Turn off" : "Turn on"}
       </Button>
+      {lastError ? (
+        <p role="alert" className="text-[11px] text-destructive">
+          {lastError}
+        </p>
+      ) : null}
     </div>
   )
 }
 
 export function StreamerModeSettingsCard() {
-  const { enabled, setEnabled, pending } = useStreamerMode()
+  const { enabled, setEnabled, pending, lastError } = useStreamerMode()
 
   return (
     <div className="space-y-3">
@@ -98,6 +107,11 @@ export function StreamerModeSettingsCard() {
         {enabled ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
         {enabled ? "Disable Streamer Mode" : "Enable Streamer Mode"}
       </Button>
+      {lastError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {lastError}
+        </p>
+      ) : null}
     </div>
   )
 }
