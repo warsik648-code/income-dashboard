@@ -112,13 +112,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       })
 
       if (!dbUser) {
-        // Returning null deletes the JWT / clears the session cookie.
+        // Invalidate for this request. Do not rely on cookie deletion here:
+        // auth() runs during RSC render and must not write cookies.
+        // Cookie clearing happens only via signOut in Server Actions.
         return null
       }
 
       const currentPwdAt = dbUser.passwordChangedAt?.getTime() ?? 0
       if ((token.pwdAt as number | undefined) !== currentPwdAt) {
-        // Password changed elsewhere — invalidate this JWT.
+        // Password changed elsewhere — invalidate this JWT for this request.
         return null
       }
 

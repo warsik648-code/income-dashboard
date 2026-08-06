@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-import { auth, signOut } from "@/auth"
+import { auth } from "@/auth"
 import { hasValidSessionUserId } from "@/lib/auth/session-guards"
 import { AppShell } from "@/components/layout/app-shell"
 
@@ -11,10 +11,10 @@ export default async function DashboardLayout({
 }) {
   const session = await auth()
 
-  // Require a non-empty user id (rejects stale/invalid JWTs).
-  // Clear the cookie so middleware cannot bounce us back to /dashboard.
+  // Read-only in RSC: never call signOut/signIn here — they write cookies
+  // via cookies().set, which Next.js forbids outside Server Actions / Route Handlers.
+  // Invalid sessions simply redirect; cookie clearing happens in logoutAction.
   if (!session?.user || !hasValidSessionUserId(session)) {
-    await signOut({ redirect: false })
     redirect("/login")
   }
 
