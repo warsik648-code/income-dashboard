@@ -23,21 +23,25 @@ DB integration tests **must** use `TEST_DATABASE_URL`. They never fall back to `
 | Separation | `TEST_DATABASE_URL` must not be identical to `DATABASE_URL` |
 | Data | Disposable `*.test` users only; cleaned up in `afterAll` |
 
-### Local setup
+### Local / Supabase test project setup
 
 ```bash
-# 1. Create an isolated Postgres database (name must contain "test")
-createdb income_dashboard_test
+# 1. Create a separate Supabase project (e.g. income-dashboard-test)
+# 2. Copy the template and paste Session/pooler + direct URLs:
+cp .env.integration.example .env.integration
 
-# 2. Put the URL in .env.local (do not commit secrets)
-# TEST_DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/income_dashboard_test?schema=public"
+# 3. Edit .env.integration only (never change production DATABASE_URL in .env):
+#    TEST_DATABASE_URL=...&integration_test=1
+#    TEST_DIRECT_URL=...&integration_test=1
 
-# 3. Apply migrations to the test database only
-DATABASE_URL="$TEST_DATABASE_URL" pnpm exec prisma migrate deploy
+# 4. Apply migrations to the TEST database only
+pnpm db:migrate:test
 
-# 4. Run integration suites
+# 5. Run integration suites
 pnpm test:integration
 ```
+
+`pnpm db:migrate:test` loads `.env.integration`, prefers `TEST_DIRECT_URL`, refuses URLs identical to production `DATABASE_URL`, and never writes to `.env`.
 
 Do **not** run integration tests against production or the primary app database.
 

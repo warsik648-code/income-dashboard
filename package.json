@@ -15,6 +15,7 @@
     "test:integration": "vitest run lib/services/transfers.integrity.test.ts lib/services/expenses.concurrency.test.ts lib/services/subscriptions.renewal.test.ts",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
+    "db:migrate:test": "node scripts/migrate-test-db.mjs",
     "db:seed-owner": "tsx prisma/seed-owner.ts"
   },
   "dependencies": {

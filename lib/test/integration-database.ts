@@ -43,7 +43,9 @@ function databaseNameFromUrl(url: string): string {
  * Explicit test markers (any one is enough):
  * - database name contains "test" (e.g. income_dashboard_test)
  * - query param integration_test=1
+ * - username/host contains "test"
  * - env INTEGRATION_TEST_DB_MARKER matching a substring of the URL
+ *   (recommended for Supabase: the test project ref)
  */
 export function hasExplicitTestMarker(url: string): boolean {
   const dbName = databaseNameFromUrl(url).toLowerCase()
@@ -52,6 +54,8 @@ export function hasExplicitTestMarker(url: string): boolean {
   try {
     const parsed = new URL(url)
     if (parsed.searchParams.get("integration_test") === "1") return true
+    if (parsed.username.toLowerCase().includes("test")) return true
+    if (parsed.hostname.toLowerCase().includes("test")) return true
   } catch {
     // fall through
   }
@@ -79,13 +83,17 @@ export function assertSafeTestDatabaseUrl(url: string): void {
   if (!hasExplicitTestMarker(trimmed)) {
     throw new Error(
       "Unsafe TEST_DATABASE_URL: add an explicit test marker. " +
-        'Use a database name containing "test" (recommended: income_dashboard_test), ' +
-        "or append ?integration_test=1, " +
-        "or set INTEGRATION_TEST_DB_MARKER to a unique substring of the URL."
+        'Use a database name containing "test", ' +
+        "or append ?integration_test=1 (recommended for Supabase), " +
+        "or set INTEGRATION_TEST_DB_MARKER to the test project ref."
     )
   }
 
-  const productionUrl = process.env.DATABASE_URL?.trim()
+  // Prefer the snapshotted production URL so re-installing the test URL into
+  // process.env.DATABASE_URL (for the Prisma singleton) does not false-positive.
+  const productionUrl = (
+    process.env.PRODUCTION_DATABASE_URL || process.env.DATABASE_URL
+  )?.trim()
   if (
     productionUrl &&
     normalizeConnectionString(productionUrl) ===
@@ -134,10 +142,12 @@ export function installVerifiedTestDatabaseUrl(): string {
     throw new Error(status.message)
   }
 
-  process.env.DATABASE_URL = status.url
-
-  const globalForPrisma = globalThis as unknown as { prisma?: unknown }
-  globalForPrisma.prisma = undefined
+  // Idempotent: safe to call from module scope and again in beforeAll.
+  if (process.env.DATABASE_URL?.trim() !== status.url) {
+    process.env.DATABASE_URL = status.url
+    const globalForPrisma = globalThis as unknown as { prisma?: unknown }
+    globalForPrisma.prisma = undefined
+  }
 
   return status.url
 }
