@@ -76,7 +76,7 @@ Public-address blockchain balance watchers for TRUST / BINANCE (USDT TRC20, BTC,
 
 | Provider | Unit |
 |----------|------|
-| TronGrid | Unix **milliseconds** when present |
+| TronGrid (`GET /v1/accounts/{address}/trc20/balance`) | `meta.at` Unix **milliseconds** |
 | mempool.space (Bitcoin) | Unix **seconds** → `* 1000` |
 | Ethereum JSON-RPC block time | Unix **seconds** (hex) |
 | BlockCypher (Litecoin) | Unix **seconds** (or ISO-8601 with Z/offset) |

@@ -9,7 +9,11 @@ import { WalletProviderError } from "@/lib/wallets/types"
 describe("blockchain balance providers (mocked)", () => {
   it("returns zero USDT balance from TronGrid", async () => {
     const fetchImpl = vi.fn(async () =>
-      Response.json({ data: [], success: true })
+      Response.json({
+        data: [],
+        success: true,
+        meta: { at: 1_700_000_000_000 },
+      })
     )
     const provider = createTronGridProvider({ fetchImpl })
     const result = await provider.fetchBalance({
@@ -19,6 +23,13 @@ describe("blockchain balance providers (mocked)", () => {
     })
     expect(result.balance).toBe("0")
     expect(result.decimals).toBe(6)
+    expect(result.fetchedAt.toISOString()).toBe("2023-11-14T22:13:20.000Z")
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+      "/v1/accounts/TJYeasTPa6gpEefF1E2nFTYCYTpiseJG9X/trc20/balance"
+    )
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+      "contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    )
   })
 
   it("returns large USDT balance from TronGrid", async () => {
@@ -26,11 +37,11 @@ describe("blockchain balance providers (mocked)", () => {
       Response.json({
         data: [
           {
-            token_id: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-            token_abbr: "USDT",
-            balance: "1234567890123",
+            TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t: "1234567890123",
           },
         ],
+        success: true,
+        meta: { at: 1_700_000_000_000, page_size: 1 },
       })
     )
     const provider = createTronGridProvider({ fetchImpl })
@@ -40,6 +51,31 @@ describe("blockchain balance providers (mocked)", () => {
       network: "TRON",
     })
     expect(result.balance).toBe("1234567.890123")
+  })
+
+  it("returns a user-friendly error for TronGrid HTTP failures", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json(
+        {
+          timestamp: "2026-08-06T12:32:50.581+00:00",
+          status: 404,
+          error: "Not Found",
+          path: "/v1/accounts/x/tokens",
+        },
+        { status: 404 }
+      )
+    )
+    const provider = createTronGridProvider({ fetchImpl })
+    await expect(
+      provider.fetchBalance({
+        address: "TJYeasTPa6gpEefF1E2nFTYCYTpiseJG9X",
+        asset: "USDT",
+        network: "TRON",
+      })
+    ).rejects.toMatchObject({
+      message:
+        "Could not load USDT (TRC20) balance: TronGrid has no TRC-20 balance data for this address.",
+    })
   })
 
   it("rejects invalid TRON address", async () => {
