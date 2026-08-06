@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import { ExchangeRateField } from "@/components/money/exchange-rate-field"
 import { SUPPORTED_CURRENCIES } from "@/lib/money/currency"
+import { SensitiveAmountInput } from "@/components/streamer-mode"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -84,7 +85,7 @@ export function DebtFormFields({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="originalAmount">Original amount</Label>
-          <Input
+          <SensitiveAmountInput
             id="originalAmount"
             name="originalAmount"
             inputMode="decimal"

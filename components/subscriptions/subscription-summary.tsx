@@ -1,3 +1,4 @@
+import { SensitiveValue } from "@/components/streamer-mode"
 type SubscriptionSummaryProps = {
   activeCount: number
   dueCount: number
@@ -53,7 +54,9 @@ export function SubscriptionSummary({
                 key={row.currency}
                 className="font-mono text-sm tabular-nums tracking-tight"
               >
-                {row.amount} {row.currency}
+                <SensitiveValue>
+                  {row.amount} {row.currency}
+                </SensitiveValue>
               </p>
             ))
           )}
@@ -76,7 +79,7 @@ export function SubscriptionSummary({
                 <li key={item.id} className="text-sm">
                   <span className="text-foreground">{item.name}</span>
                   <span className="mt-0.5 block font-mono text-xs tabular-nums text-muted-foreground">
-                    {item.price} {item.currency} · {formatDate(item.nextRenewalDate)}
+                    <SensitiveValue>{item.price} {item.currency}</SensitiveValue> · {formatDate(item.nextRenewalDate)}
                   </span>
                 </li>
               ))}
@@ -94,7 +97,7 @@ export function SubscriptionSummary({
                 <li key={item.id} className="text-sm">
                   <span className="text-foreground">{item.name}</span>
                   <span className="mt-0.5 block font-mono text-xs tabular-nums text-muted-foreground">
-                    {item.price} {item.currency} · {formatDate(item.nextRenewalDate)}
+                    <SensitiveValue>{item.price} {item.currency}</SensitiveValue> · {formatDate(item.nextRenewalDate)}
                   </span>
                 </li>
               ))}

@@ -1,4 +1,7 @@
+"use client"
+
 import { formatAmount, formatUsd } from "@/components/analytics/format"
+import { SensitiveValue } from "@/components/streamer-mode"
 import type { DashboardResult } from "@/lib/services/dashboard"
 
 function CurrencyLines({
@@ -9,17 +12,22 @@ function CurrencyLines({
   empty: string
 }) {
   if (rows.length === 0) {
-    return <p className="font-mono text-sm tabular-nums">{empty}</p>
+    return (
+      <SensitiveValue className="font-mono text-sm tabular-nums">
+        {empty}
+      </SensitiveValue>
+    )
   }
   return (
     <div className="space-y-0.5">
       {rows.map((row) => (
-        <p
+        <SensitiveValue
           key={row.currency}
+          as="p"
           className="font-mono text-sm tabular-nums tracking-tight"
         >
           {formatAmount(row.amount, row.currency)}
-        </p>
+        </SensitiveValue>
       ))}
     </div>
   )
@@ -64,9 +72,12 @@ export function DashboardSummary({
           className="space-y-1 rounded-xl border border-border/70 bg-card/40 p-4"
         >
           <p className="text-xs text-muted-foreground">{card.label}</p>
-          <p className="font-mono text-lg tabular-nums tracking-tight">
+          <SensitiveValue
+            as="p"
+            className="font-mono text-lg tabular-nums tracking-tight"
+          >
             {card.body}
-          </p>
+          </SensitiveValue>
           {card.note ? (
             <p className="text-xs text-muted-foreground">{card.note}</p>
           ) : null}

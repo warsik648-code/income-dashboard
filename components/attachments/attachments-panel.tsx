@@ -8,6 +8,7 @@ import {
   useTransition,
 } from "react"
 import { FileText, ImageIcon, Paperclip, Upload, X } from "lucide-react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import {
   deleteAttachmentAction,
@@ -244,7 +245,7 @@ export function AttachmentsPanel({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{item.fileName}</p>
+                <SensitiveValue as="p" className="truncate text-sm font-medium">{item.fileName}</SensitiveValue>
                 <p className="text-xs text-muted-foreground">
                   {item.mimeType} · {formatBytes(item.sizeBytes)} ·{" "}
                   {new Date(item.createdAt).toLocaleString()}

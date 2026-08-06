@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowLeftRight } from "lucide-react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import { formatAmount, formatUsd } from "@/components/analytics/format"
 import { EmptyState } from "@/components/layout/empty-state"
@@ -93,13 +94,13 @@ export function DashboardActivity({
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="font-mono text-sm tabular-nums">
+                  <SensitiveValue className="font-mono text-sm tabular-nums">
                     {item.type === "EXPENSE" ? "−" : "+"}
                     {formatAmount(item.amount, item.currency)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+                  </SensitiveValue>
+                  <SensitiveValue as="p" className="text-xs text-muted-foreground">
                     ≈ {formatUsd(item.amountUsd)}
-                  </p>
+                  </SensitiveValue>
                 </div>
               </div>
             ))}

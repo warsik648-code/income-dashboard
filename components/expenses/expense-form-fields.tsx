@@ -7,6 +7,8 @@ import {
   useState,
 } from "react"
 
+import { maskSensitivePlain, useStreamerModeOptional, SensitiveAmountInput } from "@/components/streamer-mode"
+
 import {
   ExpenseCategoryPicker,
   readLastExpenseCategoryId,
@@ -119,6 +121,7 @@ export const ExpenseFormFields = forwardRef<
   },
   ref
 ) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [accountId, setAccountId] = useState(
     defaults?.accountId ?? accounts[0]?.id ?? ""
   )
@@ -253,7 +256,7 @@ export const ExpenseFormFields = forwardRef<
         >
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} ({account.currency}) · {account.cachedBalance}
+              {account.name} ({account.currency}) · {maskSensitivePlain(streamerMode, account.cachedBalance)}
             </option>
           ))}
         </select>
@@ -272,7 +275,7 @@ export const ExpenseFormFields = forwardRef<
         <Label htmlFor="amount">
           Amount {selected ? `(${selected.currency})` : ""}
         </Label>
-        <Input
+        <SensitiveAmountInput
           id="amount"
           name="amount"
           inputMode="decimal"

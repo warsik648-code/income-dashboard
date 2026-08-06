@@ -1,5 +1,6 @@
 import { formatUsd } from "@/components/analytics/format"
 import type { AnalyticsSummary as Summary } from "@/lib/services/analytics"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 export function AnalyticsSummaryCards({ summary }: { summary: Summary }) {
   const items = [
@@ -33,9 +34,15 @@ export function AnalyticsSummaryCards({ summary }: { summary: Summary }) {
           className="space-y-1 rounded-xl border border-border/70 bg-card/40 p-3"
         >
           <p className="text-xs text-muted-foreground">{item.label}</p>
-          <p className="font-mono text-sm tabular-nums tracking-tight">
-            {item.value}
-          </p>
+          {item.label === "Transactions" ? (
+            <p className="font-mono text-sm tabular-nums tracking-tight">
+              {item.value}
+            </p>
+          ) : (
+            <SensitiveValue className="font-mono text-sm tabular-nums tracking-tight">
+              {item.value}
+            </SensitiveValue>
+          )}
         </div>
       ))}
     </div>

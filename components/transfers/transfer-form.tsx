@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useActionState } from "react"
 import Decimal from "decimal.js"
+import { SensitiveValue, useStreamerModeOptional, maskSensitivePlain } from "@/components/streamer-mode"
 
 import {
   createTransferAction,
@@ -68,6 +69,7 @@ export function TransferForm({
 }: {
   accounts: TransferAccountOption[]
 }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id ?? "")
   const [toAccountId, setToAccountId] = useState(accounts[1]?.id ?? "")
   const [sourceAmount, setSourceAmount] = useState("")
@@ -399,7 +401,7 @@ export function TransferForm({
           >
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
-                {account.name} ({account.currency}) · {account.cachedBalance}
+                {account.name} ({account.currency}) · {maskSensitivePlain(streamerMode, account.cachedBalance)}
               </option>
             ))}
           </select>
@@ -422,7 +424,7 @@ export function TransferForm({
           >
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
-                {account.name} ({account.currency}) · {account.cachedBalance}
+                {account.name} ({account.currency}) · {maskSensitivePlain(streamerMode, account.cachedBalance)}
               </option>
             ))}
           </select>
@@ -683,7 +685,11 @@ export function TransferForm({
         <div className="rounded-lg border border-border/70 bg-card/50 p-4 text-sm leading-relaxed">
           <p className="font-medium">Review</p>
           <p className="mt-2 text-muted-foreground">
-            You are transferring {sourceAmount} {from.currency} from{" "}
+            You are transferring{" "}
+            <SensitiveValue>
+              {sourceAmount} {from.currency}
+            </SensitiveValue>{" "}
+            from{" "}
             <span className="text-foreground">{from.name}</span> to{" "}
             <span className="text-foreground">{to.name}</span>.
           </p>
@@ -693,7 +699,10 @@ export function TransferForm({
             </p>
           ) : null}
           <p className="text-muted-foreground">
-            Actual received: {destinationAmount} {to.currency}
+            Actual received:{" "}
+            <SensitiveValue>
+              {destinationAmount} {to.currency}
+            </SensitiveValue>
           </p>
           {effectiveRate ? (
             <p className="text-muted-foreground">
@@ -701,7 +710,10 @@ export function TransferForm({
             </p>
           ) : null}
           <p className="text-muted-foreground">
-            Fee: {feeAmount || "0"} {from.currency}
+            Fee:{" "}
+            <SensitiveValue>
+              {feeAmount || "0"} {from.currency}
+            </SensitiveValue>
             {feePaidSeparately ? " (separate expense)" : ""}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">

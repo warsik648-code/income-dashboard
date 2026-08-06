@@ -13,6 +13,7 @@ import type {
   ExpenseAccountOption,
   ExpenseCategoryOption,
 } from "@/components/expenses/expense-form-fields"
+import { SensitiveValue } from "@/components/streamer-mode"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -98,12 +99,15 @@ export function ExpenseRow({
             </CardDescription>
           </div>
           <div className="shrink-0 text-right">
-            <p className="font-mono text-sm tabular-nums tracking-tight">
+            <SensitiveValue
+              as="p"
+              className="font-mono text-sm tabular-nums tracking-tight"
+            >
               -{entry.amount.toString()} {entry.currency}
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </SensitiveValue>
+            <SensitiveValue as="p" className="text-xs text-muted-foreground">
               ≈ {entry.baseAmountUsd.toString()} USD
-            </p>
+            </SensitiveValue>
           </div>
         </div>
       </CardHeader>

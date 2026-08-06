@@ -119,6 +119,8 @@ model User {
   numberFormat             String    @default("en-US")
   defaultIncomeAccountId   String?
   defaultExpenseAccountId  String?
+  /// Visual privacy for streaming/screen share — not an auth control.
+  streamerMode             Boolean   @default(false)
   lastLoginAt              DateTime?
   passwordChangedAt        DateTime?
   createdAt                DateTime  @default(now())

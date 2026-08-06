@@ -1,3 +1,5 @@
+"use client"
+
 import { formatAmount, formatUsd } from "@/components/analytics/format"
 import {
   Card,
@@ -7,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { AnalyticsResult } from "@/lib/services/analytics"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 function EmptyRow({ label }: { label: string }) {
   return (
@@ -35,9 +38,9 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                   className="flex items-center justify-between gap-3 text-sm"
                 >
                   <span className="truncate text-foreground">{row.name}</span>
-                  <span className="shrink-0 font-mono tabular-nums">
+                  <SensitiveValue className="shrink-0 font-mono tabular-nums">
                     {formatUsd(row.amountUsd)}
-                  </span>
+                  </SensitiveValue>
                 </li>
               ))}
             </ul>
@@ -73,13 +76,13 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                     <tr key={row.currency} className="border-t border-border/50">
                       <td className="py-2 font-medium">{row.currency}</td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatAmount(row.income, row.currency)}
+                        <SensitiveValue>{formatAmount(row.income, row.currency)}</SensitiveValue>
                       </td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatAmount(row.expenses, row.currency)}
+                        <SensitiveValue>{formatAmount(row.expenses, row.currency)}</SensitiveValue>
                       </td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatAmount(row.net, row.currency)}
+                        <SensitiveValue>{formatAmount(row.net, row.currency)}</SensitiveValue>
                       </td>
                     </tr>
                   ))}
@@ -105,12 +108,12 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                 <li key={row.id} className="space-y-0.5 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <span className="truncate font-medium">{row.description}</span>
-                    <span className="shrink-0 font-mono tabular-nums">
+                    <SensitiveValue className="shrink-0 font-mono tabular-nums">
                       {formatAmount(row.amount, row.currency)}
-                    </span>
+                    </SensitiveValue>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {row.accountName} · ≈ {formatUsd(row.amountUsd)} ·{" "}
+                    {row.accountName} · ≈ <SensitiveValue>{formatUsd(row.amountUsd)}</SensitiveValue> ·{" "}
                     {new Date(row.transactionDate).toLocaleDateString()}
                   </p>
                 </li>
@@ -135,12 +138,12 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                 <li key={row.id} className="space-y-0.5 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <span className="truncate font-medium">{row.description}</span>
-                    <span className="shrink-0 font-mono tabular-nums">
+                    <SensitiveValue className="shrink-0 font-mono tabular-nums">
                       {formatAmount(row.amount, row.currency)}
-                    </span>
+                    </SensitiveValue>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {row.accountName} · ≈ {formatUsd(row.amountUsd)} ·{" "}
+                    {row.accountName} · ≈ <SensitiveValue>{formatUsd(row.amountUsd)}</SensitiveValue> ·{" "}
                     {new Date(row.transactionDate).toLocaleDateString()}
                   </p>
                 </li>
@@ -178,13 +181,13 @@ export function AnalyticsTables({ data }: { data: AnalyticsResult }) {
                     <tr key={row.period} className="border-t border-border/50">
                       <td className="py-2">{row.label}</td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatUsd(row.incomeUsd)}
+                        <SensitiveValue>{formatUsd(row.incomeUsd)}</SensitiveValue>
                       </td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatUsd(row.expensesUsd)}
+                        <SensitiveValue>{formatUsd(row.expensesUsd)}</SensitiveValue>
                       </td>
                       <td className="py-2 font-mono tabular-nums">
-                        {formatUsd(row.netUsd)}
+                        <SensitiveValue>{formatUsd(row.netUsd)}</SensitiveValue>
                       </td>
                     </tr>
                   ))}

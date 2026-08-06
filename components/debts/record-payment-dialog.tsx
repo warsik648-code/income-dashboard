@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
+import { SensitiveValue, useStreamerModeOptional, maskSensitivePlain } from "@/components/streamer-mode"
 
 import {
   markDebtFullyPaidAction,
@@ -47,6 +48,7 @@ export function RecordPaymentDialog({
   }
   mode?: "partial" | "full"
 }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [open, setOpen] = useState(false)
   const matchingAccounts = accounts.filter(
     (account) => account.currency === debt.currency
@@ -94,7 +96,7 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {debt.personName} · remaining {debt.remainingAmount}{" "}
+            {debt.personName} · remaining <SensitiveValue>{debt.remainingAmount}</SensitiveValue>{" "}
             {debt.currency}. Original debt amount stays unchanged; this adds a
             payment record.
           </DialogDescription>
@@ -187,7 +189,7 @@ export function RecordPaymentDialog({
                 >
                   {matchingAccounts.map((account) => (
                     <option key={account.id} value={account.id}>
-                      {account.name} · bal {account.cachedBalance}{" "}
+                      {account.name} · bal {maskSensitivePlain(streamerMode, account.cachedBalance)}{" "}
                       {account.currency}
                     </option>
                   ))}
@@ -205,7 +207,15 @@ export function RecordPaymentDialog({
                   <span>
                     Allow overdraft
                     {selected
-                      ? ` (available ${selected.cachedBalance} ${selected.currency})`
+                      ? (
+                        <>
+                          {" "}(available{" "}
+                          <SensitiveValue>
+                            {selected.cachedBalance} {selected.currency}
+                          </SensitiveValue>
+                          )
+                        </>
+                      )
                       : ""}
                   </span>
                 </label>

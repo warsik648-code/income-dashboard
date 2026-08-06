@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import {
   restoreDebtAction,
@@ -110,9 +111,12 @@ export function DebtRow({
             </CardDescription>
           </div>
           <div className="shrink-0 text-right">
-            <p className="font-mono text-sm tabular-nums tracking-tight">
+            <SensitiveValue
+              as="p"
+              className="font-mono text-sm tabular-nums tracking-tight"
+            >
               {entry.remainingAmount} {entry.currency}
-            </p>
+            </SensitiveValue>
             <p className="text-xs text-muted-foreground">remaining</p>
           </div>
         </div>
@@ -121,15 +125,15 @@ export function DebtRow({
         <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
           <p>
             Original:{" "}
-            <span className="font-mono text-foreground">
+            <SensitiveValue className="font-mono text-foreground">
               {entry.originalAmount} {entry.currency}
-            </span>
+            </SensitiveValue>
           </p>
           <p>
             Paid:{" "}
-            <span className="font-mono text-foreground">
+            <SensitiveValue className="font-mono text-foreground">
               {entry.paidAmount} {entry.currency}
-            </span>
+            </SensitiveValue>
           </p>
           <p>Created: {formatDate(entry.createdAt)}</p>
           {entry.dueDate ? <p>Due: {formatDate(entry.dueDate)}</p> : null}

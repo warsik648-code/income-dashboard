@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Wallet } from "lucide-react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import { formatAccountType } from "@/components/accounts/account-constants"
 import { formatAmount, formatUsd } from "@/components/analytics/format"
@@ -63,9 +64,9 @@ export function DashboardAccounts({
                       <Badge variant="outline">{account.currency}</Badge>
                     </CardDescription>
                   </div>
-                  <p className="shrink-0 font-mono text-sm tabular-nums">
+                  <SensitiveValue className="shrink-0 font-mono text-sm tabular-nums">
                     {formatAmount(account.balance, account.currency)}
-                  </p>
+                  </SensitiveValue>
                 </div>
               </CardHeader>
               <CardContent className="space-y-1 text-sm text-muted-foreground">
@@ -75,9 +76,13 @@ export function DashboardAccounts({
                   </p>
                 ) : null}
                 <p>
-                  {account.balanceUsd != null
-                    ? `≈ ${formatUsd(account.balanceUsd)} USD`
-                    : "USD equivalent unavailable"}
+                  {account.balanceUsd != null ? (
+                    <SensitiveValue>
+                      ≈ {formatUsd(account.balanceUsd)} USD
+                    </SensitiveValue>
+                  ) : (
+                    "USD equivalent unavailable"
+                  )}
                 </p>
               </CardContent>
             </Card>

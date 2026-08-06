@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useStreamerModeOptional, maskSensitivePlain, SensitiveAmountInput } from "@/components/streamer-mode"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -84,6 +85,7 @@ export function SubscriptionFormFields({
   defaults,
   disabled,
 }: SubscriptionFormFieldsProps) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [accountId, setAccountId] = useState(
     defaults?.accountId ?? accounts[0]?.id ?? ""
   )
@@ -155,7 +157,7 @@ export function SubscriptionFormFields({
         >
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} ({account.currency}) · bal {account.cachedBalance}
+              {account.name} ({account.currency}) · bal {maskSensitivePlain(streamerMode, account.cachedBalance)}
             </option>
           ))}
         </select>
@@ -171,7 +173,7 @@ export function SubscriptionFormFields({
           <Label htmlFor="price">
             Price {selected ? `(${selected.currency})` : ""}
           </Label>
-          <Input
+          <SensitiveAmountInput
             id="price"
             name="price"
             inputMode="decimal"

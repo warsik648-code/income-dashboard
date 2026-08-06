@@ -9,6 +9,7 @@ import {
   type TransferActionState,
 } from "@/app/(dashboard)/dashboard/transfers/actions"
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel"
+import { SensitiveValue } from "@/components/streamer-mode"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,15 +40,26 @@ export function TransferRow({ entry }: { entry: TransferListItem }) {
             Transfer: {entry.fromAccount.name} → {entry.toAccount.name}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sent {entry.sourceAmount.toString()} {entry.sourceCurrency} · received{" "}
-            {entry.destinationAmount.toString()} {entry.destinationCurrency}
+            Sent{" "}
+            <SensitiveValue>
+              {entry.sourceAmount.toString()} {entry.sourceCurrency}
+            </SensitiveValue>{" "}
+            · received{" "}
+            <SensitiveValue>
+              {entry.destinationAmount.toString()} {entry.destinationCurrency}
+            </SensitiveValue>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Effective rate {entry.effectiveExchangeRate.toString()} · fee{" "}
-            {entry.feeAmount.toString()}{" "}
-            {entry.feeCurrency ?? entry.sourceCurrency}
-            {entry.feePaidSeparately ? " (separate)" : ""} ·{" "}
-            {entry.status} ·{" "}
+            Effective rate{" "}
+            <SensitiveValue>
+              {entry.effectiveExchangeRate.toString()}
+            </SensitiveValue>{" "}
+            · fee{" "}
+            <SensitiveValue>
+              {entry.feeAmount.toString()}{" "}
+              {entry.feeCurrency ?? entry.sourceCurrency}
+            </SensitiveValue>
+            {entry.feePaidSeparately ? " (separate)" : ""} · {entry.status} ·{" "}
             {new Date(entry.transferredAt).toLocaleString()}
           </p>
         </div>

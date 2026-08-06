@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Repeat } from "lucide-react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import { formatAmount } from "@/components/analytics/format"
 import { EmptyState } from "@/components/layout/empty-state"
@@ -76,7 +77,7 @@ export function DashboardSubscriptions({
                       <span className="truncate">{item.name}</span>
                     </div>
                     <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatAmount(item.price, item.currency)} ·{" "}
+                      <SensitiveValue>{formatAmount(item.price, item.currency)}</SensitiveValue> ·{" "}
                       {formatDate(item.nextRenewalDate)}
                     </p>
                   </div>
@@ -101,7 +102,7 @@ export function DashboardSubscriptions({
                   <div key={item.id} className="text-sm">
                     <p className="truncate">{item.name}</p>
                     <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatAmount(item.price, item.currency)} ·{" "}
+                      <SensitiveValue>{formatAmount(item.price, item.currency)}</SensitiveValue> ·{" "}
                       {formatDate(item.nextRenewalDate)}
                     </p>
                   </div>
@@ -126,7 +127,7 @@ export function DashboardSubscriptions({
                     key={row.currency}
                     className="font-mono text-sm tabular-nums"
                   >
-                    {formatAmount(row.amount, row.currency)}
+                    <SensitiveValue>{formatAmount(row.amount, row.currency)}</SensitiveValue>
                   </p>
                 ))
               )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react"
+import { useStreamerModeOptional, maskSensitivePlain } from "@/components/streamer-mode"
 
 import {
   confirmPaidAction,
@@ -42,6 +43,7 @@ export function ConfirmPaidDialog({
     nextRenewalDate: string
   }
 }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const matchingAccounts = accounts.filter(
     (account) => account.currency === subscription.currency
   )
@@ -105,7 +107,7 @@ export function ConfirmPaidDialog({
             >
               {matchingAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.name} · bal {account.cachedBalance}{" "}
+                  {account.name} · bal {maskSensitivePlain(streamerMode, account.cachedBalance)}{" "}
                   {account.currency}
                 </option>
               ))}

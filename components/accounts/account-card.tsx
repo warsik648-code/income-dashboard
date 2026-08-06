@@ -12,6 +12,7 @@ import {
   formatBalance,
 } from "@/components/accounts/account-constants"
 import { EditAccountDialog } from "@/components/accounts/edit-account-dialog"
+import { SensitiveValue } from "@/components/streamer-mode"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -65,9 +66,9 @@ export function AccountCard({ account }: AccountCardProps) {
               ) : null}
             </CardDescription>
           </div>
-          <p className="shrink-0 font-mono text-sm tabular-nums tracking-tight">
+          <SensitiveValue className="shrink-0 font-mono text-sm tabular-nums tracking-tight">
             {formatBalance(account.cachedBalance, account.currency)}
-          </p>
+          </SensitiveValue>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

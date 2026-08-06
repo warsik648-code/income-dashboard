@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState } from "react"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import {
   cancelSubscriptionAction,
@@ -143,10 +144,14 @@ export function SubscriptionRow({
           </div>
           <div className="shrink-0 text-right">
             <p className="font-mono text-sm tabular-nums tracking-tight">
-              {entry.price} {entry.currency}
+              <SensitiveValue>
+                {entry.price} {entry.currency}
+              </SensitiveValue>
             </p>
             <p className="text-xs text-muted-foreground">
-              ≈ {entry.monthlyEquivalent} / mo
+              <SensitiveValue>
+                ≈ {entry.monthlyEquivalent} / mo
+              </SensitiveValue>
             </p>
           </div>
         </div>

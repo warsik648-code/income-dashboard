@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { SensitiveValue } from "@/components/streamer-mode"
 
 import { formatAmount } from "@/components/analytics/format"
 import { Badge } from "@/components/ui/badge"
@@ -95,9 +96,9 @@ export function DashboardDebts({
                     </Badge>
                     <span className="truncate">{debt.personName}</span>
                   </div>
-                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  <SensitiveValue className="font-mono text-xs tabular-nums text-muted-foreground">
                     {formatAmount(debt.remainingAmount, debt.currency)}
-                  </span>
+                  </SensitiveValue>
                 </div>
               ))}
             </div>

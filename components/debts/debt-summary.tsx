@@ -1,3 +1,4 @@
+import { SensitiveValue } from "@/components/streamer-mode"
 type AmountRow = { currency: string; amount: string }
 
 export function DebtSummary({
@@ -14,15 +15,18 @@ export function DebtSummary({
       <div className="space-y-2 rounded-xl border border-border/70 bg-card/40 p-4">
         <p className="text-sm text-muted-foreground">Total owed to me</p>
         {owedToMeByCurrency.length === 0 ? (
-          <p className="font-mono text-lg tabular-nums tracking-tight">0</p>
+          <SensitiveValue className="font-mono text-lg tabular-nums tracking-tight">
+            0
+          </SensitiveValue>
         ) : (
           owedToMeByCurrency.map((row) => (
-            <p
+            <SensitiveValue
               key={row.currency}
+              as="p"
               className="font-mono text-lg tabular-nums tracking-tight"
             >
               {row.amount} {row.currency}
-            </p>
+            </SensitiveValue>
           ))
         )}
         <p className="text-xs text-muted-foreground">
@@ -33,15 +37,18 @@ export function DebtSummary({
       <div className="space-y-2 rounded-xl border border-border/70 bg-card/40 p-4">
         <p className="text-sm text-muted-foreground">Total I owe</p>
         {iOweByCurrency.length === 0 ? (
-          <p className="font-mono text-lg tabular-nums tracking-tight">0</p>
+          <SensitiveValue className="font-mono text-lg tabular-nums tracking-tight">
+            0
+          </SensitiveValue>
         ) : (
           iOweByCurrency.map((row) => (
-            <p
+            <SensitiveValue
               key={row.currency}
+              as="p"
               className="font-mono text-lg tabular-nums tracking-tight"
             >
               {row.amount} {row.currency}
-            </p>
+            </SensitiveValue>
           ))
         )}
         <p className="text-xs text-muted-foreground">

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 
 import { auth } from "@/auth"
 import { hasValidSessionUserId } from "@/lib/auth/session-guards"
+import { getStreamerMode } from "@/lib/services/streamer-mode"
 import { AppShell } from "@/components/layout/app-shell"
 
 export default async function DashboardLayout({
@@ -19,13 +20,16 @@ export default async function DashboardLayout({
   }
 
   const user = session.user
+  const streamerMode = await getStreamerMode(user.id)
 
   return (
     <AppShell
       user={{
+        id: user.id,
         email: user.email,
         name: user.name,
       }}
+      streamerMode={streamerMode}
     >
       {children}
     </AppShell>

@@ -20,6 +20,11 @@ import {
 
 import { ChartCard } from "@/components/analytics/chart-card"
 import {
+  SensitiveChart,
+  useStreamerTooltipFormatter,
+  useStreamerYTickFormatter,
+} from "@/components/streamer-mode"
+import {
   CATEGORY_PALETTE,
   CHART_COLORS,
   formatUsd,
@@ -27,12 +32,10 @@ import {
 } from "@/components/analytics/format"
 import type { AnalyticsResult } from "@/lib/services/analytics"
 
-function tooltipUsd(value: number | string | undefined) {
-  if (value == null) return ""
-  return formatUsd(value)
-}
-
 export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
+  const yTick = useStreamerYTickFormatter()
+  const tooltipUsd = useStreamerTooltipFormatter((value) => formatUsd(value))
+
   const flowData = data.incomeVsExpenses.map((row) => ({
     label: row.label,
     income: toChartNumber(row.incomeUsd),
@@ -76,11 +79,12 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={!hasFlow}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={flowData}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -98,6 +102,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               />
             </BarChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -107,11 +112,12 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={!hasFlow}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={flowData}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -130,6 +136,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               />
             </LineChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -139,6 +146,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={spendCat.length === 0}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -167,6 +175,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -176,6 +185,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={incomeCat.length === 0}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -204,6 +214,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -213,10 +224,11 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={spendAcct.length === 0}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={spendAcct} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-              <XAxis type="number" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <XAxis type="number" tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <YAxis
                 type="category"
                 dataKey="name"
@@ -234,6 +246,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               <Bar dataKey="value" name="Spent" fill={CHART_COLORS.expense} />
             </BarChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -243,10 +256,11 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={incomeAcct.length === 0}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeAcct} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-              <XAxis type="number" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <XAxis type="number" tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <YAxis
                 type="category"
                 dataKey="name"
@@ -264,6 +278,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               <Bar dataKey="value" name="Income" fill={CHART_COLORS.income} />
             </BarChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -273,11 +288,12 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={monthly.every((m) => m.income === 0 && m.expenses === 0)}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={monthly}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -295,6 +311,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               />
             </BarChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
 
@@ -304,11 +321,12 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
         isEmpty={!hasFlow}
       >
         <div className="h-64 w-full min-w-0">
+          <SensitiveChart>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={savings}>
               <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
+              <YAxis tick={yTick ? false : { fill: "var(--muted-foreground)", fontSize: 11 }} tickFormatter={yTick} />
               <Tooltip
                 formatter={(value) => tooltipUsd(value as number)}
                 contentStyle={{
@@ -327,6 +345,7 @@ export function AnalyticsCharts({ data }: { data: AnalyticsResult }) {
               />
             </AreaChart>
           </ResponsiveContainer>
+          </SensitiveChart>
         </div>
       </ChartCard>
     </div>

@@ -12,6 +12,10 @@ import {
   type SettingsActionState,
 } from "@/app/(dashboard)/dashboard/settings/actions"
 import {
+  StreamerModeSettingsCard,
+  useStreamerModeOptional,
+} from "@/components/streamer-mode"
+import {
   COMMON_TIMEZONES,
   DATE_FORMATS,
   NUMBER_FORMATS,
@@ -63,6 +67,7 @@ export function SettingsView({
     strategy: string
   }
 }) {
+  const { enabled: streamerMode } = useStreamerModeOptional()
   const [prefState, prefAction, prefPending] = useActionState(
     updatePreferencesAction,
     initialState
@@ -421,6 +426,12 @@ export function SettingsView({
                   defaultValue={defaultTo}
                 />
               </div>
+              {streamerMode ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Streamer Mode is on. CSV downloads still contain real amounts —
+                  do not share the file while streaming.
+                </p>
+              ) : null}
               <Button type="submit" variant="outline">
                 Download CSV
               </Button>
@@ -433,7 +444,8 @@ export function SettingsView({
             <CardTitle className="text-base tracking-tight">Security</CardTitle>
             <CardDescription>Account protection status</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-4 text-sm">
+            <StreamerModeSettingsCard />
             <div className="flex items-center gap-2">
               <Badge variant="secondary">Registration disabled</Badge>
             </div>

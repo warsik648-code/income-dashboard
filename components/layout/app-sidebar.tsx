@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 
 import { logoutAction } from "@/lib/auth/actions"
 import { mainNavItems, secondaryNavItems } from "@/lib/navigation"
+import { StreamerModeSidebarControl } from "@/components/streamer-mode"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -121,6 +122,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="gap-3 px-3 pb-3">
+        <StreamerModeSidebarControl />
         <Separator className="opacity-60" />
         <div className="flex items-center gap-3 rounded-xl border border-sidebar-border/80 bg-sidebar-accent/40 p-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1.5">
           <Avatar size="sm">
