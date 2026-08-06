@@ -56,6 +56,7 @@ export {
 export {
   EXPENSE_CATEGORY_NAMES,
   ensureExpenseCategories,
+  listExpenseCategories,
 } from "./categories"
 
 export {

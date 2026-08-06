@@ -14,7 +14,16 @@ function createPrismaClient() {
     )
   }
 
-  const adapter = new PrismaPg({ connectionString })
+  // Cap the driver pool. Default pg max=10 per warm serverless instance
+  // exhausts Supabase session-mode pool_size (often 15) → EMAXCONNSESSION /
+  // Prisma P2039 and a dashboard error boundary after login.
+  const adapter = new PrismaPg({
+    connectionString,
+    max: 1,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    allowExitOnIdle: true,
+  })
   return new PrismaClient({ adapter })
 }
 

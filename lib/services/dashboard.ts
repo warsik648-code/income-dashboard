@@ -115,24 +115,16 @@ async function latestExchangeRatesByCurrency(userId: string) {
 }
 
 export async function getDashboard(userId: string): Promise<DashboardResult> {
-  const [
-    accounts,
-    rates,
-    today,
-    thisMonth,
-    last30,
-    subscriptions,
-    debts,
-    recent,
-    recentTransfers,
-  ] = await Promise.all([
+  // Keep concurrency low: Supabase session-mode pool_size is small, and each
+  // parallel query can hold a client. Wave the work instead of one big Promise.all.
+  const [accounts, rates, subscriptions, debts] = await Promise.all([
     listAccounts(userId, { includeArchived: false }),
     latestExchangeRatesByCurrency(userId),
-    getAnalytics(userId, { preset: "today" }),
-    getAnalytics(userId, { preset: "this_month" }),
-    getAnalytics(userId, { preset: "last_30_days" }),
     listSubscriptions(userId),
     listDebts(userId),
+  ])
+
+  const [recent, recentTransfers] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         userId,
@@ -159,6 +151,11 @@ export async function getDashboard(userId: string): Promise<DashboardResult> {
       take: 12,
     }),
   ])
+
+  // Analytics intentionally sequential — each call scans transactions.
+  const today = await getAnalytics(userId, { preset: "today" })
+  const thisMonth = await getAnalytics(userId, { preset: "this_month" })
+  const last30 = await getAnalytics(userId, { preset: "last_30_days" })
 
   const accountCards: DashboardAccountCard[] = accounts.map((account) => {
     const rate =

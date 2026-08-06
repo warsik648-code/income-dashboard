@@ -19,6 +19,20 @@ export const EXPENSE_CATEGORY_NAMES = [
   "Other",
 ] as const
 
+/** Read-only expense categories (no creates/restores). Safe for dashboard loads. */
+export async function listExpenseCategories(
+  userId: string
+): Promise<Category[]> {
+  return prisma.category.findMany({
+    where: {
+      userId,
+      kind: "EXPENSE",
+      deletedAt: null,
+    },
+    orderBy: { name: "asc" },
+  })
+}
+
 /** Idempotently ensure system expense categories exist for the user. */
 export async function ensureExpenseCategories(
   userId: string
