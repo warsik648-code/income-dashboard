@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
-import { auth } from "@/auth"
+import { auth, signOut } from "@/auth"
+import { hasValidSessionUserId } from "@/lib/auth/session-guards"
 import { AppShell } from "@/components/layout/app-shell"
 
 export default async function DashboardLayout({
@@ -9,18 +10,21 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const session = await auth()
-  const userId = session?.user?.id?.trim()
 
   // Require a non-empty user id (rejects stale/invalid JWTs).
-  if (!userId || !session?.user) {
+  // Clear the cookie so middleware cannot bounce us back to /dashboard.
+  if (!session?.user || !hasValidSessionUserId(session)) {
+    await signOut({ redirect: false })
     redirect("/login")
   }
+
+  const user = session.user
 
   return (
     <AppShell
       user={{
-        email: session.user.email,
-        name: session.user.name,
+        email: user.email,
+        name: user.name,
       }}
     >
       {children}

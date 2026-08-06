@@ -1,5 +1,7 @@
 import type { NextAuthConfig } from "next-auth"
 
+import { decideAuthorized } from "@/lib/auth/authorized"
+
 /**
  * Edge-safe Auth.js config used by middleware.
  * Credentials authorize (Prisma/Argon2) lives in auth.ts only.
@@ -34,27 +36,16 @@ export const authConfig = {
       return session
     },
     authorized({ auth, request }) {
-      const { pathname } = request.nextUrl
-      const isLoggedIn = Boolean(auth?.user?.id)
+      const decision = decideAuthorized({
+        pathname: request.nextUrl.pathname,
+        isLoggedIn: Boolean(auth?.user?.id?.trim()),
+      })
 
-      if (pathname.startsWith("/dashboard")) {
-        return isLoggedIn
+      if (decision === true || decision === false) {
+        return decision
       }
 
-      if (pathname === "/login") {
-        if (isLoggedIn) {
-          return Response.redirect(new URL("/dashboard", request.nextUrl))
-        }
-        return true
-      }
-
-      if (pathname === "/") {
-        return Response.redirect(
-          new URL(isLoggedIn ? "/dashboard" : "/login", request.nextUrl)
-        )
-      }
-
-      return true
+      return Response.redirect(new URL(decision.redirectTo, request.nextUrl))
     },
   },
   trustHost: true,

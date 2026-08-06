@@ -5,5 +5,7 @@ import { authConfig } from "@/auth.config"
 export default NextAuth(authConfig).auth
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard", "/dashboard/:path*"],
+  // Do not match /login — it must always render. Auth API, static assets,
+  // and Next internals are excluded by omitting them from the matcher.
+  matcher: ["/", "/dashboard", "/dashboard/:path*"],
 }
