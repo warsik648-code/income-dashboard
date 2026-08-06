@@ -8,6 +8,7 @@ import {
   refreshWalletIntegrationAction,
   type WalletActionState,
 } from "@/app/(dashboard)/dashboard/wallets/actions"
+import { CryptoAssetHeading } from "@/components/crypto"
 import { PageHeader } from "@/components/layout/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -117,10 +118,9 @@ function AssetCard({
     <Card className="border-border/70 bg-card/70 shadow-none">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-base tracking-tight">
-              {row.asset}
-            </CardTitle>
+          <div className="min-w-0 space-y-1.5">
+            <CardTitle className="sr-only">{row.asset}</CardTitle>
+            <CryptoAssetHeading asset={row.asset} network={row.network} />
             <CardDescription>
               {row.network}
               {row.linkedAccount

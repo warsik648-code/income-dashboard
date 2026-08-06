@@ -64,7 +64,7 @@ export function createTronGridProvider(options?: {
       let response: Response
       try {
         response = await fetchImpl(url, { headers, signal })
-      } catch (error) {
+      } catch {
         if (signal?.aborted) {
           throw new WalletProviderError("Provider request timed out", "TIMEOUT")
         }

@@ -9,6 +9,7 @@ import {
   updateWalletIntegrationAction,
   type WalletActionState,
 } from "@/app/(dashboard)/dashboard/wallets/actions"
+import { CryptoAssetHeading } from "@/components/crypto"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -107,13 +108,11 @@ function WalletIntegrationSettingsRow({
 
   return (
     <div className="space-y-3 rounded-lg border border-border/60 bg-background/20 p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <p className="text-sm font-medium">
-            {row.walletName} · {row.asset}
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1.5">
+          <CryptoAssetHeading asset={row.asset} network={row.network} />
           <p className="text-xs text-muted-foreground">
-            Network {row.network}
+            {row.walletName} · Network {row.network}
             {row.lastSuccessfulRefresh
               ? ` · Last refresh ${formatAppDateTime(row.lastSuccessfulRefresh)}`
               : ""}

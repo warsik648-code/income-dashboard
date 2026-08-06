@@ -8,7 +8,7 @@ import { WalletProviderError } from "@/lib/wallets/types"
 
 describe("blockchain balance providers (mocked)", () => {
   it("returns zero USDT balance from TronGrid", async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
       Response.json({
         data: [],
         success: true,
@@ -24,10 +24,11 @@ describe("blockchain balance providers (mocked)", () => {
     expect(result.balance).toBe("0")
     expect(result.decimals).toBe(6)
     expect(result.fetchedAt.toISOString()).toBe("2023-11-14T22:13:20.000Z")
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+    const calledUrl = String(fetchImpl.mock.calls[0]?.[0] ?? "")
+    expect(calledUrl).toContain(
       "/v1/accounts/TJYeasTPa6gpEefF1E2nFTYCYTpiseJG9X/trc20/balance"
     )
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toContain(
+    expect(calledUrl).toContain(
       "contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
     )
   })
